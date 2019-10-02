@@ -1,0 +1,7 @@
+/node_modules
+*.sw[po]
+/dist/*bundle.js
+/dist/*worker.js
+/dist/config.json
+/dist/program/
+/.cargo

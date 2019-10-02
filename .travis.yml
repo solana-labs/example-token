@@ -1,0 +1,44 @@
+dist: xenial
+sudo: required
+language: rust
+services:
+- docker
+cache:
+  directories:
+  - "~/.npm"
+notifications:
+  email: false
+
+install:
+  - cargo --version
+  - docker --version
+  - wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+  - sudo apt-add-repository "deb http://apt.llvm.org/xenial/ llvm-toolchain-xenial-7 main"
+  - sudo apt-add-repository "deb http://ppa.launchpad.net/ubuntu-toolchain-r/test/ubuntu xenial main"
+  - sudo apt-get update
+  - sudo apt-get install -y clang-7 --allow-unauthenticated
+  - clang-7 --version
+  - nvm install node
+  - node --version
+  - npm install
+
+script:
+  - npm run build:program
+  - npm run test
+
+deploy:
+  - provider: heroku
+    api_key:
+      secure: RVWMuB8pfYnWxvKDGb4vGHf+475iKGDXBC9MsqMogdx3F2l9oh5AKkhlibPL77Ltuhg+v3o46Ow6ITr6rwDTgZ3mZPI66lTSng0aQRUNGyXaO2EVrXYRMqKQxfiJ2AQ+zke6zGf/IeQAqh5rMh8KxY4+vbPYA/ha3tyxYLSHP0Pxg62F4dJx7hzdGRl8BJPcbFAc4aYR2HOKIX52KjY7ZIMyfuD0jyK7HNFXeV/RdIVcDZI0udJEFDwWg7+wJIS0Ea81++cGUYvbekealDoLqbMOYvAVCc4+3W99tPIIMtaTOWZQGCKF6pxxMS9LZ9+D/pK/hQBkpDLg5t0IWVv0v+OwExpv6n67Nxu8qk8RXHXWeaD9F/Qe+0CpHVKUd8TOBoarxuPzcZ6u8G1F/vmSw7hZ1qe5WTmGcrSJBDFP9Qq7iOxrfR8nl9XaBAj13nTLK/ee7t0Uj4chChoS2//iRUHM+/OMPGHOT3bhHStM73asuwmc2RQgP+26GN4W63N3sBUF9EKWSLPVm+JVmG2+UNhf1FyAGQRoMi4JdkRioZ6o3mHed5BrpyksqTnyHh4h16Nm0Axwo3ruV4rum8N+O1axyuOzmUa1B5YV7+UqF9KQJu6yj/oeVLyBNN41FR6NuqKhoPm7JdE48kfU8UsjFkEAijMCEj10syd8eW+dFzY=
+    app: solana-example-erc20-token
+    strategy: git
+    on:
+      repo: solana-labs/example-erc20-token
+      tags: true
+  - provider: heroku
+    api_key:
+      secure: RVWMuB8pfYnWxvKDGb4vGHf+475iKGDXBC9MsqMogdx3F2l9oh5AKkhlibPL77Ltuhg+v3o46Ow6ITr6rwDTgZ3mZPI66lTSng0aQRUNGyXaO2EVrXYRMqKQxfiJ2AQ+zke6zGf/IeQAqh5rMh8KxY4+vbPYA/ha3tyxYLSHP0Pxg62F4dJx7hzdGRl8BJPcbFAc4aYR2HOKIX52KjY7ZIMyfuD0jyK7HNFXeV/RdIVcDZI0udJEFDwWg7+wJIS0Ea81++cGUYvbekealDoLqbMOYvAVCc4+3W99tPIIMtaTOWZQGCKF6pxxMS9LZ9+D/pK/hQBkpDLg5t0IWVv0v+OwExpv6n67Nxu8qk8RXHXWeaD9F/Qe+0CpHVKUd8TOBoarxuPzcZ6u8G1F/vmSw7hZ1qe5WTmGcrSJBDFP9Qq7iOxrfR8nl9XaBAj13nTLK/ee7t0Uj4chChoS2//iRUHM+/OMPGHOT3bhHStM73asuwmc2RQgP+26GN4W63N3sBUF9EKWSLPVm+JVmG2+UNhf1FyAGQRoMi4JdkRioZ6o3mHed5BrpyksqTnyHh4h16Nm0Axwo3ruV4rum8N+O1axyuOzmUa1B5YV7+UqF9KQJu6yj/oeVLyBNN41FR6NuqKhoPm7JdE48kfU8UsjFkEAijMCEj10syd8eW+dFzY=
+    app: solana-edge-example-erc20-token
+    strategy: git
+    on:
+      repo: solana-labs/example-erc20-token
