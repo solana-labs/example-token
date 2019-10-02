@@ -17,7 +17,6 @@
     "localnet:logs": "solana-localnet logs -f",
     "pretty": "prettier --write '{,src/**/}*.js'",
     "postinstall": "npm run bpf-sdk:update",
-    "test2": "npm run build:program; npm run flow",
     "test": "npm run build:program; cross-env NODE_ENV=test jest --useStderr",
     "test:cover": "npm run build:program; cross-env NODE_ENV=test jest --coverage --useStderr",
     "test:live": "npm run build:program; cross-env NODE_ENV=test TEST_LIVE=1 jest --useStderr",
