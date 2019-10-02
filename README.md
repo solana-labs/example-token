@@ -6,7 +6,7 @@
 # ERC20 Token Example on Solana
 
 This project demonstrates how to use the [Solana Javascript API](https://github.com/solana-labs/solana-web3.js)
-to build, deploy, and interact with a ERC Token example program on the Solana blockchain.
+to build, deploy, and interact with a ERC20 Token example program on the Solana blockchain.
 
 The project comprises of:
 
@@ -22,7 +22,7 @@ $ npm install
 
 ### Select a Network
 
-The example connects to a local Solana cluster by default.
+This example connects to a local Solana cluster by default.
 
 To enable on-chain program logs, set the `RUST_LOG` environment variable:
 
@@ -53,6 +53,7 @@ $ npm run test:live
 ```
 
 ## Customizing the Program
-To customize, make changes to the files under `/src`
+
+To customize the example, make changes to the files under `/src`
 
 Now when you run `npm run test:live`, you should see the results of your changes.
