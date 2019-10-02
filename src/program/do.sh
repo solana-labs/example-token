@@ -28,14 +28,11 @@ perform_action() {
         "$sdkDir"/rust/build.sh "$PWD"
         
         so_path="$targetDir/$profile"
-        so_name="solana_bpf_erc20-token"
+        so_name="solana_bpf_erc20_token"
         if [ -f "$so_path/${so_name}.so" ]; then
             cp "$so_path/${so_name}.so" "$so_path/${so_name}_debug.so"
             "$sdkDir"/dependencies/llvm-native/bin/llvm-objcopy --strip-all "$so_path/${so_name}.so" "$so_path/$so_name.so"
         fi
-        
-        mkdir -p ../dist/program
-        cp "$so_path/${so_name}.so" ../dist/program
         ;;
     clean)
         "$sdkDir"/rust/clean.sh "$PWD"
