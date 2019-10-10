@@ -6,7 +6,7 @@
 # Token Example on Solana
 
 This project demonstrates how to use the [Solana Javascript API](https://github.com/solana-labs/solana-web3.js)
-to build, deploy, and interact with an ERC20 like Token example program on the Solana blockchain.
+to build, deploy, and interact with an ERC20-like Token example program on the Solana blockchain.
 
 The project comprises of:
 
