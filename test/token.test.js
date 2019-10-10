@@ -49,7 +49,7 @@ test('load token program', async () => {
   const connection = new Connection(url);
   const from = await newAccountWithLamports(connection, 100000);
   const data = await fs.readFile(
-    'src/program/target/bpfel-unknown-unknown/release/solana_bpf_erc20_token.so',
+    'src/program/target/bpfel-unknown-unknown/release/solana_bpf_token.so',
   );
   console.log("Loading BPF program, may take a bit...");
   programId = await BpfLoader.load(connection, from, data);
