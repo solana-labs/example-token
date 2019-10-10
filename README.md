@@ -1,16 +1,16 @@
 [![Build status][travis-image]][travis-url]
 
-[travis-image]: https://api.travis-ci.org/solana-labs/example-erc20-token.svg?branch=master
-[travis-url]: https://travis-ci.org/solana-labs/example-erc20-token
+[travis-image]: https://api.travis-ci.org/solana-labs/example-token.svg?branch=master
+[travis-url]: https://travis-ci.org/solana-labs/example-token
 
-# ERC20 Token Example on Solana
+# Token Example on Solana
 
 This project demonstrates how to use the [Solana Javascript API](https://github.com/solana-labs/solana-web3.js)
-to build, deploy, and interact with a ERC20 Token example program on the Solana blockchain.
+to build, deploy, and interact with an ERC20-like Token example program on the Solana blockchain.
 
 The project comprises of:
 
-* A library to interact with the on-chain ERC20 program
+* A library to interact with the on-chain program
 * Test client that exercises the program
 
 ## Getting Started
