@@ -50,7 +50,7 @@
     "react-bootstrap": "^0.32.4",
     "react-dom": "^16.5.2",
     "readline-promise": "^1.0.3",
-    "superstruct": "^0.6.0",
+    "superstruct": "^0.8.2",
     "tweetnacl": "^1.0.0",
     "watch": "^1.0.2"
   },
