@@ -25,7 +25,7 @@ function assert(condition, message) {
   }
 }
 
-async function didThrow(func, args): Promise<Boolean> {
+async function didThrow(func, args): Promise<boolean> {
   try {
     await func.apply(args);
   } catch (e) {
@@ -34,7 +34,7 @@ async function didThrow(func, args): Promise<Boolean> {
   return false;
 }
 
-export async function loadTokenProgram(): Promise<> {
+export async function loadTokenProgram(): Promise<void> {
   const NUM_RETRIES = 500; /* allow some number of retries */
   const data = await fs.readFile(
     'src/program/target/bpfel-unknown-unknown/release/solana_bpf_token.so',
@@ -50,7 +50,7 @@ export async function loadTokenProgram(): Promise<> {
   programId = await BpfLoader.load(connection, from, data);
 }
 
-export async function createNewToken(): Promise<> {
+export async function createNewToken(): Promise<void> {
   const connection = new Connection(url);
   initialOwner = await newAccountWithLamports(connection, 1024);
   [testToken, initialOwnerTokenAccount] = await Token.createNewToken(
@@ -77,7 +77,7 @@ export async function createNewToken(): Promise<> {
   assert(accountInfo.originalAmount.toNumber() == 0);
 }
 
-export async function createNewTokenAccount(): Promise<> {
+export async function createNewTokenAccount(): Promise<void> {
   const connection = new Connection(url);
   const destOwner = await newAccountWithLamports(connection);
   const dest = await testToken.newAccount(destOwner);
@@ -88,7 +88,7 @@ export async function createNewTokenAccount(): Promise<> {
   assert(accountInfo.source == null);
 }
 
-export async function transfer(): Promise<> {
+export async function transfer(): Promise<void> {
   const connection = new Connection(url);
   const destOwner = await newAccountWithLamports(connection);
   const dest = await testToken.newAccount(destOwner);
@@ -100,7 +100,7 @@ export async function transfer(): Promise<> {
   assert(destAccountInfo.amount.toNumber() == 123);
 }
 
-export async function approveRevoke(): Promise<> {
+export async function approveRevoke(): Promise<void> {
   if (programId == null) {
     console.log('test skipped, requires "load token program" to succeed');
     return;
@@ -140,7 +140,7 @@ export async function approveRevoke(): Promise<> {
   }
 }
 
-export async function invalidApprove(): Promise<> {
+export async function invalidApprove(): Promise<void> {
   const connection = new Connection(url);
   const owner = await newAccountWithLamports(connection);
   const account1 = await testToken.newAccount(owner);
@@ -153,7 +153,7 @@ export async function invalidApprove(): Promise<> {
   assert(didThrow(testToken.approve, [owner, account2, account1Delegate, 123]));
 }
 
-export async function failOnApproveOverspend(): Promise<> {
+export async function failOnApproveOverspend(): Promise<void> {
   const connection = new Connection(url);
   const owner = await newAccountWithLamports(connection);
   const account1 = await testToken.newAccount(owner);
@@ -188,7 +188,7 @@ export async function failOnApproveOverspend(): Promise<> {
   assert(didThrow(testToken.transfer, [owner, account1Delegate, account2, 1]));
 }
 
-export async function setOwner(): Promise<> {
+export async function setOwner(): Promise<void> {
   const connection = new Connection(url);
   const owner = await newAccountWithLamports(connection);
   const newOwner = await newAccountWithLamports(connection);

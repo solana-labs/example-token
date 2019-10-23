@@ -2,6 +2,10 @@
   "name": "token",
   "version": "0.0.1",
   "description": "",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/solana-labs/example-token"
+  },
   "scripts": {
     "start": "babel-node src/cli/main.js",
     "lint": "npm run pretty && eslint .",
@@ -17,7 +21,7 @@
     "localnet:down": "solana-localnet down",
     "localnet:logs": "solana-localnet logs -f",
     "pretty": "prettier --write '{,src/**/}*.js'",
-    "postinstall": "npm run build; npm run bpf-sdk:update",
+    "postinstall": "npm run bpf-sdk:update",
     "test": "npm run build:program && npm run flow"
   },
   "keywords": [],
@@ -40,6 +44,7 @@
     "babel-preset-react": "^6.24.1",
     "babel-preset-stage-2": "^6.24.1",
     "babel-runtime": "^6.26.0",
+    "bn.js": "^5.0.0",
     "body-parser": "^1.18.3",
     "buffer-layout": "^1.2.0",
     "css-loader": "^3.1.0",
