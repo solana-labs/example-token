@@ -85,7 +85,7 @@
     "eslint-plugin-prettier": "^3.0.0",
     "eslint-plugin-react": "^7.15.1",
     "flow-bin": "0.110.0",
-    "flow-typed": "2.6.1",
+    "flow-typed": "2.6.2",
     "fs-file-tree": "1.0.7",
     "jest": "24.9.0",
     "marked": "^0.7.0",
