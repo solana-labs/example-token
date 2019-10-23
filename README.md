@@ -41,19 +41,18 @@ $ npm run localnet:logs
 
 For more details on working with a local cluster, see the [full instructions](https://github.com/solana-labs/solana-web3.js#local-network).
 
-Alternatively to connect to the public testnet, `export LIVE=1` in your
-environment.  By default `LIVE=1` will connect to the
+By default the program will connect to the
 beta testnet.  To use the edge testnet instead, define `export CHANNEL=edge' in
 your environment (see [url.js](https://github.com/solana-labs/solana/tree/master/urj.js) for more)
 
 ### Run the test client
 
 ```sh
-$ npm run test:live
+$ npm run start
 ```
 
 ## Customizing the Program
 
 To customize the example, make changes to the files under `/src`
 
-Now when you run `npm run test:live`, you should see the results of your changes.
+Now when you run `npm run start`, you should see the results of your changes.

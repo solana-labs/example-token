@@ -136,13 +136,6 @@ const TokenAccountInfoLayout = BufferLayout.struct([
 
 type TokenAndPublicKey = [Token, PublicKey]; // This type exists to workaround an esdoc parse error
 
-// /**
-//  * The built-in token program
-//  */
-// export const SYSTEM_TOKEN_PROGRAM_ID = new PublicKey(
-//   'Token11111111111111111111111111111111111111',
-// );
-
 /**
  * An ERC20-like Token
  */
