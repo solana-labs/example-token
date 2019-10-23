@@ -1,8 +1,8 @@
 // @flow
 
 import fs from 'mz/fs';
-import {Connection, BpfLoader, PublicKey, Token, TokenAmount} from '@solana/web3.js';
-
+import {Connection, BpfLoader, PublicKey} from '@solana/web3.js';
+import {Token, TokenAmount} from '../src/client/client';
 import {mockRpc, mockRpcEnabled} from './__mocks__/node-fetch';
 import {url} from './url';
 import {newAccountWithLamports} from './new-account-with-lamports';
