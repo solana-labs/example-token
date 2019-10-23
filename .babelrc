@@ -1,27 +1,13 @@
 {
   "presets": [
-    [ "@babel/preset-env", { "modules": false } ],
-    "@babel/preset-flow",
+    "env",
+    "flow",
+    "react",
+    "stage-2",
   ],
-
   "plugins": [
-    ["module-resolver", {
-      "root": ["./src"],
-    }],
-    "@babel/transform-runtime",
-    "@babel/plugin-proposal-class-properties",
-    "@babel/plugin-proposal-function-bind",
-  ],
-
-  "env": {
-    "test": {
-      "plugins": [
-        "@babel/transform-runtime",
-      ],
-      "presets": [
-        "@babel/preset-env",
-        "@babel/preset-flow",
-      ],
-    },
-  },
+    "transform-class-properties",
+    "transform-function-bind",
+    "transform-runtime",
+  ]
 }
