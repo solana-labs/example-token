@@ -24,10 +24,9 @@ export async function sendAndConfirmTransaction(
   const when = Date.now();
 
   if (!payerAccount) {
-    const newPayerAccount = await newSystemAccountWithAirdrop(
-      connection,
-      100000,
-    );
+    const [, feeCalculator] = await connection.getRecentBlockhash();
+    const fees = feeCalculator.lamportsPerSignature * 100; // wag
+    const newPayerAccount = await newSystemAccountWithAirdrop(connection, fees);
     // eslint-disable-next-line require-atomic-updates
     payerAccount = payerAccount || newPayerAccount;
   }

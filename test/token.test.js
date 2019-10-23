@@ -1,7 +1,8 @@
 // @flow
 
 import fs from 'mz/fs';
-import {Connection, BpfLoader, PublicKey, Token, TokenAmount} from '@solana/web3.js';
+import {Connection, BpfLoader, PublicKey} from '@solana/web3.js';
+import {Token, TokenAmount} from '../src/client/client';
 import {mockRpc, mockRpcEnabled} from './__mocks__/node-fetch';
 import {url} from './url';
 import {newAccountWithLamports} from './new-account-with-lamports';
@@ -46,12 +47,20 @@ test('load token program', async () => {
     return;
   }
 
-  const connection = new Connection(url);
-  const from = await newAccountWithLamports(connection, 100000);
+  const NUM_RETRIES = 500; /* allow some number of retries */
+
   const data = await fs.readFile(
     'src/program/target/bpfel-unknown-unknown/release/solana_bpf_token.so',
   );
-  console.log("Loading BPF program, may take a bit...");
+
+  const connection = new Connection(url);
+  const [, feeCalculator] = await connection.getRecentBlockhash();
+  const fees =
+    feeCalculator.lamportsPerSignature *
+    (BpfLoader.getMinNumSignatures(data.length) + NUM_RETRIES);
+  const from = await newAccountWithLamports(connection, fees);
+
+  console.log('Loading BPF program, may take a bit...');
   programId = await BpfLoader.load(connection, from, data);
 });
 
