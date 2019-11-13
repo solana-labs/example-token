@@ -229,6 +229,7 @@ export class Token {
       connection,
       transaction,
       owner,
+      tokenAccount,
     );
 
     transaction = new Transaction().add({
@@ -290,6 +291,7 @@ export class Token {
       this.connection,
       transaction,
       owner,
+      tokenAccount,
     );
 
     // Initialize the token account
