@@ -233,8 +233,8 @@ export class Token {
 
     transaction = new Transaction().add({
       keys: [
-        {pubkey: tokenAccount.publicKey, isSigner: true, isDebitable: false},
-        {pubkey: initialAccountPublicKey, isSigner: false, isDebitable: true},
+        {pubkey: tokenAccount.publicKey, isSigner: true, isWritable: false},
+        {pubkey: initialAccountPublicKey, isSigner: false, isWritable: true},
       ],
       programId,
       data,
@@ -294,12 +294,12 @@ export class Token {
 
     // Initialize the token account
     const keys = [
-      {pubkey: tokenAccount.publicKey, isSigner: true, isDebitable: true},
-      {pubkey: owner.publicKey, isSigner: false, isDebitable: false},
-      {pubkey: this.token, isSigner: false, isDebitable: false},
+      {pubkey: tokenAccount.publicKey, isSigner: true, isWritable: true},
+      {pubkey: owner.publicKey, isSigner: false, isWritable: false},
+      {pubkey: this.token, isSigner: false, isWritable: false},
     ];
     if (source) {
-      keys.push({pubkey: source, isSigner: false, isDebitable: false});
+      keys.push({pubkey: source, isSigner: false, isWritable: false});
     }
     transaction = new Transaction().add({
       keys,
@@ -502,15 +502,15 @@ export class Token {
     );
 
     const keys = [
-      {pubkey: owner, isSigner: true, isDebitable: false},
-      {pubkey: source, isSigner: false, isDebitable: true},
-      {pubkey: destination, isSigner: false, isDebitable: true},
+      {pubkey: owner, isSigner: true, isWritable: false},
+      {pubkey: source, isSigner: false, isWritable: true},
+      {pubkey: destination, isSigner: false, isWritable: true},
     ];
     if (accountInfo.source) {
       keys.push({
         pubkey: accountInfo.source,
         isSigner: false,
-        isDebitable: true,
+        isWritable: true,
       });
     }
     return new TransactionInstruction({
@@ -550,9 +550,9 @@ export class Token {
 
     return new TransactionInstruction({
       keys: [
-        {pubkey: owner, isSigner: true, isDebitable: false},
-        {pubkey: account, isSigner: false, isDebitable: true},
-        {pubkey: delegate, isSigner: false, isDebitable: true},
+        {pubkey: owner, isSigner: true, isWritable: false},
+        {pubkey: account, isSigner: false, isWritable: true},
+        {pubkey: delegate, isSigner: false, isWritable: true},
       ],
       programId: this.programId,
       data,
@@ -598,9 +598,9 @@ export class Token {
 
     return new TransactionInstruction({
       keys: [
-        {pubkey: owner, isSigner: true, isDebitable: false},
-        {pubkey: account, isSigner: false, isDebitable: true},
-        {pubkey: newOwner, isSigner: false, isDebitable: true},
+        {pubkey: owner, isSigner: true, isWritable: false},
+        {pubkey: account, isSigner: false, isWritable: true},
+        {pubkey: newOwner, isSigner: false, isWritable: true},
       ],
       programId: this.programId,
       data,
