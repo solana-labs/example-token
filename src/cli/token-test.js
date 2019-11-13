@@ -2,6 +2,7 @@
 
 import fs from 'mz/fs';
 import {Connection, BpfLoader, PublicKey} from '@solana/web3.js';
+import semver from 'semver';
 
 import {Token, TokenAmount} from '../client/token';
 import {url} from './url';
@@ -34,12 +35,30 @@ async function didThrow(func, args): Promise<boolean> {
   return false;
 }
 
+let connection;
+async function getConnection(): Promise<Connection> {
+  if (connection) return connection;
+
+  let newConnection = new Connection(url);
+  const version = await newConnection.getVersion();
+
+  // commitment params are only supported >= 0.21.0
+  const solanaCoreVersion = version['solana-core'].split(' ')[0];
+  if (semver.gte(solanaCoreVersion, '0.21.0')) {
+    newConnection = new Connection(url, 'recent');
+  }
+
+  // eslint-disable-next-line require-atomic-updates
+  connection = newConnection;
+  return connection;
+}
+
 export async function loadTokenProgram(): Promise<void> {
   const NUM_RETRIES = 500; /* allow some number of retries */
   const data = await fs.readFile(
     'src/program/target/bpfel-unknown-unknown/release/solana_bpf_token.so',
   );
-  const connection = new Connection(url);
+  const connection = await getConnection();
   const [, feeCalculator] = await connection.getRecentBlockhash();
   const fees =
     feeCalculator.lamportsPerSignature *
@@ -51,7 +70,7 @@ export async function loadTokenProgram(): Promise<void> {
 }
 
 export async function createNewToken(): Promise<void> {
-  const connection = new Connection(url);
+  const connection = await getConnection();
   initialOwner = await newAccountWithLamports(connection, 1024);
   [testToken, initialOwnerTokenAccount] = await Token.createNewToken(
     connection,
@@ -78,7 +97,7 @@ export async function createNewToken(): Promise<void> {
 }
 
 export async function createNewTokenAccount(): Promise<void> {
-  const connection = new Connection(url);
+  const connection = await getConnection();
   const destOwner = await newAccountWithLamports(connection);
   const dest = await testToken.newAccount(destOwner);
   const accountInfo = await testToken.accountInfo(dest);
@@ -89,7 +108,7 @@ export async function createNewTokenAccount(): Promise<void> {
 }
 
 export async function transfer(): Promise<void> {
-  const connection = new Connection(url);
+  const connection = await getConnection();
   const destOwner = await newAccountWithLamports(connection);
   const dest = await testToken.newAccount(destOwner);
 
@@ -106,7 +125,7 @@ export async function approveRevoke(): Promise<void> {
     return;
   }
 
-  const connection = new Connection(url);
+  const connection = await getConnection();
   const delegateOwner = await newAccountWithLamports(connection);
   const delegate = await testToken.newAccount(
     delegateOwner,
@@ -141,7 +160,7 @@ export async function approveRevoke(): Promise<void> {
 }
 
 export async function invalidApprove(): Promise<void> {
-  const connection = new Connection(url);
+  const connection = await getConnection();
   const owner = await newAccountWithLamports(connection);
   const account1 = await testToken.newAccount(owner);
   const account1Delegate = await testToken.newAccount(owner, account1);
@@ -154,7 +173,7 @@ export async function invalidApprove(): Promise<void> {
 }
 
 export async function failOnApproveOverspend(): Promise<void> {
-  const connection = new Connection(url);
+  const connection = await getConnection();
   const owner = await newAccountWithLamports(connection);
   const account1 = await testToken.newAccount(owner);
   const account1Delegate = await testToken.newAccount(owner, account1);
@@ -189,7 +208,7 @@ export async function failOnApproveOverspend(): Promise<void> {
 }
 
 export async function setOwner(): Promise<void> {
-  const connection = new Connection(url);
+  const connection = await getConnection();
   const owner = await newAccountWithLamports(connection);
   const newOwner = await newAccountWithLamports(connection);
   const account = await testToken.newAccount(owner);
