@@ -331,8 +331,7 @@ impl TokenState {
                 return Err(TokenError::InvalidArgument);
             }
 
-            if accounts[0].key != &source_account.owner ||
-            !accounts[0].is_signer {
+            if accounts[0].key != &source_account.owner || !accounts[0].is_signer {
                 info!("Error: owner of account 1 not present");
                 return Err(TokenError::InvalidArgument);
             }
@@ -462,6 +461,9 @@ impl TokenState {
 #[cfg(test)]
 mod test {
     use super::*;
+    // Pulls in the stubs required for `info!()`
+    solana_sdk_bpf_test::stubs!();
+
     #[test]
     pub fn serde() {
         assert_eq!(TokenState::deserialize(&[0]), Ok(TokenState::default()));
@@ -506,6 +508,4 @@ mod test {
         assert!(TokenState::deserialize(&[2, 2]).is_err());
         assert!(TokenState::deserialize(&[3]).is_err());
     }
-
-    // Note: business logic tests are located in the @solana/web3.js test suite
 }
