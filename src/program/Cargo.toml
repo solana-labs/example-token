@@ -19,6 +19,9 @@ serde = "1.0.100"
 serde_derive = "1.0.100"
 solana-sdk = { git = "https://github.com/solana-labs/solana", default-features = false }
 
+[dev_dependencies]
+solana-sdk-bpf-test = { git = "https://github.com/solana-labs/solana", default-features = false }
+
 [features]
 program = ["solana-sdk/program"]
 default = ["program"]
