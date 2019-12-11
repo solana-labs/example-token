@@ -39,7 +39,8 @@ perform_action() {
         ;;
     test)
         echo "test"
-        cargo +nightly test
+        shift
+        cargo +nightly test $@
         ;;
     clippy)
         echo "clippy"
@@ -63,4 +64,4 @@ perform_action() {
 
 set -e
 
-perform_action "$1"
+perform_action "$@"

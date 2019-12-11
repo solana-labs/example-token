@@ -458,11 +458,13 @@ impl TokenState {
     }
 }
 
+// Pulls in the stubs required for `info!()`
+#[cfg(not(target_arch = "bpf"))]
+solana_sdk_bpf_test::stubs!();
+
 #[cfg(test)]
 mod test {
     use super::*;
-    // Pulls in the stubs required for `info!()`
-    solana_sdk_bpf_test::stubs!();
 
     #[test]
     pub fn serde() {
