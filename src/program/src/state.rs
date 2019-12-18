@@ -1,98 +1,71 @@
-use num_derive::FromPrimitive;
+use crate::error::{Result, TokenError};
+use crate::simple_serde::SimpleSerde;
 use serde_derive::{Deserialize, Serialize};
-use solana_sdk::{
-    account_info::AccountInfo, info, instruction_processor_utils::DecodeError, pubkey::Pubkey,
-};
+use solana_sdk::{account_info::AccountInfo, info, pubkey::Pubkey};
 
-#[derive(Serialize, Debug, PartialEq, FromPrimitive)]
-pub enum TokenError {
-    InvalidArgument,
-    InsufficentFunds,
-    NotOwner,
-}
-
-impl TokenError {
-    pub fn print(&self) {
-        match self {
-            TokenError::InvalidArgument => info!("Error: InvalidArgument"),
-            TokenError::InsufficentFunds => info!("Error: InsufficentFunds"),
-            TokenError::NotOwner => info!("Error: NotOwner"),
-        }
-    }
-}
-
-impl<T> DecodeError<T> for TokenError {
-    fn type_of() -> &'static str {
-        "TokenError"
-    }
-}
-
-impl std::fmt::Display for TokenError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "error")
-    }
-}
-impl std::error::Error for TokenError {}
-
-pub type Result<T> = std::result::Result<T, TokenError>;
-
-#[derive(Debug, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct TokenInfo {
     /// Total supply of tokens
-    supply: u64,
+    pub supply: u64,
 
     /// Number of base 10 digits to the right of the decimal place in the total supply
-    decimals: u8,
+    pub decimals: u8,
 
     /// Descriptive name of this token
-    name: String,
+    pub name: [u8; 32],
 
     /// Symbol for this token
-    symbol: String,
+    pub symbol: [u8; 32],
 }
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct TokenAccountDelegateInfo {
     /// The source account for the tokens
-    source: Pubkey,
+    pub source: Pubkey,
 
     /// The original amount that this delegate account was authorized to spend up to
-    original_amount: u64,
+    pub original_amount: u64,
 }
 
-#[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct TokenAccountInfo {
     /// The kind of token this account holds
-    token: Pubkey,
+    pub token: Pubkey,
 
     /// Owner of this account
-    owner: Pubkey,
+    pub owner: Pubkey,
 
     /// Amount of tokens this account holds
-    amount: u64,
+    pub amount: u64,
 
     /// If `delegate` None, `amount` belongs to this account.
     /// If `delegate` is Option<_>, `amount` represents the remaining allowance
     /// of tokens that may be transferred from the `source` account.
-    delegate: Option<TokenAccountDelegateInfo>,
+    pub delegate: Option<TokenAccountDelegateInfo>,
 }
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
-enum TokenInstruction {
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+pub enum TokenInstruction {
     NewToken(TokenInfo),
+    // key 0 - Destination new token account
+    // key 1 - Owner of the account
+    // key 2 - Token this account is associated with
+    // key 3 - Source account that this account is a delegate for (optional)
     NewTokenAccount,
     Transfer(u64),
     Approve(u64),
     SetOwner,
 }
+impl SimpleSerde for TokenInstruction {}
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
 pub enum TokenState {
     Unallocated,
     Token(TokenInfo),
     Account(TokenAccountInfo),
     Invalid,
 }
+impl SimpleSerde for TokenState {}
 impl Default for TokenState {
     fn default() -> TokenState {
         TokenState::Unallocated
@@ -100,70 +73,6 @@ impl Default for TokenState {
 }
 
 impl TokenState {
-    #[allow(clippy::boxed_local)]
-    fn map_to_invalid_args(_err: std::boxed::Box<bincode::ErrorKind>) -> TokenError {
-        info!("Error: invalid argument");
-        TokenError::InvalidArgument
-    }
-
-    pub fn deserialize(input: &[u8]) -> Result<TokenState> {
-        if input.is_empty() {
-            return Err(TokenError::InvalidArgument);
-        }
-        match input[0] {
-            0 => Ok(TokenState::Unallocated),
-            1 => Ok(TokenState::Token(
-                bincode::deserialize(&input[1..]).map_err(Self::map_to_invalid_args)?,
-            )),
-            2 => Ok(TokenState::Account(
-                bincode::deserialize(&input[1..]).map_err(Self::map_to_invalid_args)?,
-            )),
-            _ => Err(TokenError::InvalidArgument),
-        }
-    }
-
-    fn serialize(self: &TokenState, output: &mut [u8]) -> Result<()> {
-        if output.is_empty() {
-            info!("Error: serialize fail: output.len is 0");
-            return Err(TokenError::InvalidArgument);
-        }
-        match self {
-            TokenState::Unallocated | TokenState::Invalid => Err(TokenError::InvalidArgument),
-            TokenState::Token(token_info) => {
-                output[0] = 1;
-                let writer = std::io::BufWriter::new(&mut output[1..]);
-                bincode::serialize_into(writer, &token_info).map_err(Self::map_to_invalid_args)
-            }
-            TokenState::Account(account_info) => {
-                output[0] = 2;
-                let writer = std::io::BufWriter::new(&mut output[1..]);
-                bincode::serialize_into(writer, &account_info).map_err(Self::map_to_invalid_args)
-            }
-        }
-    }
-
-    #[allow(dead_code)]
-    pub fn amount(&self) -> Result<u64> {
-        if let TokenState::Account(account_info) = self {
-            Ok(account_info.amount)
-        } else {
-            Err(TokenError::InvalidArgument)
-        }
-    }
-
-    #[allow(dead_code)]
-    pub fn only_owner(&self, key: &Pubkey) -> Result<()> {
-        if *key != Pubkey::default() {
-            if let TokenState::Account(account_info) = self {
-                if account_info.owner == *key {
-                    return Ok(());
-                }
-            }
-        }
-        info!("Error: TokenState: non-owner rejected");
-        Err(TokenError::NotOwner)
-    }
-
     pub fn process_newtoken(
         accounts: &mut [AccountInfo],
         token_info: TokenInfo,
@@ -207,10 +116,6 @@ impl TokenState {
         input_accounts: &[TokenState],
         output_accounts: &mut Vec<(usize, TokenState)>,
     ) -> Result<()> {
-        // key 0 - Destination new token account
-        // key 1 - Owner of the account
-        // key 2 - Token this account is associated with
-        // key 3 - Source account that this account is a delegate for (optional)
         if input_accounts.len() < 3 {
             info!("Error: Expected 3 accounts");
             return Err(TokenError::InvalidArgument);
@@ -395,12 +300,7 @@ impl TokenState {
     }
 
     pub fn process(program_id: &Pubkey, accounts: &mut [AccountInfo], input: &[u8]) -> Result<()> {
-        let command =
-            bincode::deserialize::<TokenInstruction>(input).map_err(Self::map_to_invalid_args)?;
-
-        if !accounts[0].is_signer {
-            return Err(TokenError::InvalidArgument);
-        }
+        let command = TokenInstruction::deserialize(input)?;
 
         let input_accounts: Vec<TokenState> = accounts
             .iter()
@@ -484,8 +384,8 @@ mod test {
         let account = TokenState::Token(TokenInfo {
             supply: 12345,
             decimals: 2,
-            name: "A test token".to_string(),
-            symbol: "TEST".to_string(),
+            // name: "A test token".to_string(),
+            // symbol: "TEST".to_string(),
         });
         account.serialize(&mut data).unwrap();
         assert_eq!(TokenState::deserialize(&data), Ok(account));

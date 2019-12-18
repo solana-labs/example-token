@@ -1,2 +1,8 @@
+pub mod error;
 pub mod processor;
-mod state;
+pub mod simple_serde;
+pub mod state;
+
+extern crate serde;
+#[macro_use]
+extern crate serde_derive;
