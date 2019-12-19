@@ -1,7 +1,7 @@
 use solana_bpf_loader_program::{create_vm, deserialize_parameters, serialize_parameters};
 use solana_bpf_token::{
     simple_serde::SimpleSerde,
-    state::{TokenInfo, TokenInstruction, TokenState},
+    state::{Command, State, Token},
 };
 use solana_sdk::{
     account::{Account, KeyedAccount},
@@ -9,9 +9,9 @@ use solana_sdk::{
 };
 use std::{fs::File, io::Error, io::Read, mem::size_of, path::PathBuf};
 
-const BASELINE_NEWTOKENACCOUNT_COUNT: u64 = 11540;
-const BASELINE_NEWTOKEN_COUNT: u64 = 19973;
-const BASELINE_TRANSFER_COUNT: u64 = 31032;
+const BASELINE_NEWTOKENACCOUNT_COUNT: u64 = 920;
+const BASELINE_NEWTOKEN_COUNT: u64 = 1320;
+const BASELINE_TRANSFER_COUNT: u64 = 2236;
 
 const PLATFORM_FILE_EXTENSION_BPF: &str = "so";
 
@@ -51,16 +51,16 @@ fn bench_transfer() {
     solana_logger::setup();
 
     let program_id = Pubkey::new_rand();
-    let mut instruction_data = vec![0u8; size_of::<TokenInstruction>()];
+    let mut instruction_data = vec![0u8; size_of::<Command>()];
     let mint_key = Pubkey::new_rand();
-    let mut mint_account = Account::new(0, size_of::<TokenState>(), &program_id);
+    let mut mint_account = Account::new(0, size_of::<State>(), &program_id);
     let owner_key = Pubkey::new_rand();
     let mut owner_account = Account::default();
     let token_key = Pubkey::new_rand();
-    let mut token_account = Account::new(0, size_of::<TokenState>(), &program_id);
+    let mut token_account = Account::new(0, size_of::<State>(), &program_id);
 
     // Create mint account
-    let instruction = TokenInstruction::NewTokenAccount;
+    let instruction = Command::NewTokenAccount;
     instruction.serialize(&mut instruction_data).unwrap();
     let mut parameter_accounts = vec![
         KeyedAccount::new(&mint_key, true, &mut mint_account),
@@ -72,10 +72,10 @@ fn bench_transfer() {
     assert!(result == 0);
 
     // Create new account
-    let instruction = TokenInstruction::NewTokenAccount;
+    let instruction = Command::NewTokenAccount;
     instruction.serialize(&mut instruction_data).unwrap();
     let payee_key = Pubkey::new_rand();
-    let mut payee_account = Account::new(0, size_of::<TokenState>(), &program_id);
+    let mut payee_account = Account::new(0, size_of::<State>(), &program_id);
     let mut parameter_accounts = vec![
         KeyedAccount::new(&payee_key, true, &mut payee_account),
         KeyedAccount::new(&owner_key, false, &mut owner_account),
@@ -86,7 +86,7 @@ fn bench_transfer() {
     assert!(result == 0);
 
     // Create new token
-    let instruction = TokenInstruction::NewToken(TokenInfo {
+    let instruction = Command::NewToken(Token {
         supply: 1000,
         decimals: 2,
     });
@@ -99,8 +99,8 @@ fn bench_transfer() {
         run_program(&program_id, &mut parameter_accounts[..], &instruction_data).unwrap();
     assert!(result == 0);
 
-    // transfer
-    let instruction = TokenInstruction::Transfer(100);
+    // Transfer
+    let instruction = Command::Transfer(100);
     instruction.serialize(&mut instruction_data).unwrap();
     let mut parameter_accounts = vec![
         KeyedAccount::new(&owner_key, true, &mut owner_account),
@@ -111,7 +111,7 @@ fn bench_transfer() {
         run_program(&program_id, &mut parameter_accounts[..], &instruction_data).unwrap();
     assert!(result == 0);
 
-    println!("BPF instruction executed");
+    println!("BPF instructions executed");
     println!(
         "  NewTokenAccount: {:?} ({:?})",
         newtokenaccount_count, BASELINE_NEWTOKENACCOUNT_COUNT
@@ -129,20 +129,3 @@ fn bench_transfer() {
     assert!(newtoken_count <= BASELINE_NEWTOKEN_COUNT);
     assert!(transfer_count <= BASELINE_TRANSFER_COUNT);
 }
-
-// 11540;
-// 19973;
-// 31032;
-// simple serde
-// 3302
-// 5643
-// 6377
-// Remove name/symbol
-// 2887
-// 509
-// 5728
-// rewrite account handling
-// 940
-// 1320
-// 2253
-// cleanup messages
