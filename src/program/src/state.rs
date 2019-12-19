@@ -1,20 +1,19 @@
 use crate::error::{Result, TokenError};
-use crate::simple_serde::SimpleSerde;
-use serde_derive::{Deserialize, Serialize};
 use solana_sdk::{account_info::AccountInfo, info, pubkey::Pubkey};
+use std::mem::size_of;
 
 /// Represents a unique token type that all like token accounts must be
 /// associated with
-#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Token {
     /// Total supply of tokens
     pub supply: u64,
     /// Number of base 10 digits to the right of the decimal place in the total supply
-    pub decimals: u8,
+    pub decimals: u64,
 }
 
 /// Delegation details
-#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct TokenAccountDelegate {
     /// The source account for the tokens
     pub source: Pubkey,
@@ -23,7 +22,7 @@ pub struct TokenAccountDelegate {
 }
 
 /// Account that holds or may delegate tokens
-#[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct TokenAccount {
     /// The kind of token this account holds
     pub token: Pubkey,
@@ -38,7 +37,7 @@ pub struct TokenAccount {
 }
 
 /// Possible states to accounts owned by the token program
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum State {
     /// Unallocated
     Unallocated,
@@ -49,10 +48,9 @@ pub enum State {
     /// Invalid state
     Invalid,
 }
-impl SimpleSerde for State {}
 
-/// Instructions supported by the token program
-#[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
+/// Commands supported by the token program
+#[derive(Clone, Debug, PartialEq)]
 pub enum Command {
     /// key 0 - New token
     /// key 1 - Token account to hold tokens
@@ -76,7 +74,6 @@ pub enum Command {
     /// key 2 - Owner to assign to destination account
     SetOwner,
 }
-impl SimpleSerde for Command {}
 
 impl<'a> State {
     pub fn process_newtoken<I: Iterator<Item = &'a mut AccountInfo<'a>>>(
@@ -88,7 +85,11 @@ impl<'a> State {
 
         if let State::Account(mut dest_token_account) = State::deserialize(dest_account_info.data)?
         {
-            if new_account_info.key != &dest_token_account.token || !new_account_info.is_signer {
+            if !new_account_info.is_signer {
+                info!("Error: token account not a signer");
+                return Err(TokenError::InvalidArgument);
+            }
+            if new_account_info.key != &dest_token_account.token {
                 info!("Error: token mismatch");
                 return Err(TokenError::InvalidArgument);
             }
@@ -160,7 +161,7 @@ impl<'a> State {
                 return Err(TokenError::InvalidArgument);
             }
 
-            if owner_account_info.key != &source_account.owner || !owner_account_info.is_signer {
+            if !owner_account_info.is_signer || owner_account_info.key != &source_account.owner {
                 info!("Error: source account owner not present");
                 return Err(TokenError::InvalidArgument);
             }
@@ -290,6 +291,7 @@ impl<'a> State {
         input: &[u8],
     ) -> Result<()> {
         let command = Command::deserialize(input)?;
+        info!("command deserialized");
         let account_info_iter = &mut accounts.iter_mut();
 
         match command {
@@ -317,6 +319,126 @@ impl<'a> State {
                 Self::process_setowner(account_info_iter)
             }
         }
+    }
+
+    pub fn deserialize(input: &'a [u8]) -> Result<Self> {
+        if input.len() < size_of::<u8>() {
+            return Err(TokenError::InvalidUserdata);
+        }
+        Ok(match input[0] {
+            0 => Self::Unallocated,
+            1 => {
+                if input.len() < size_of::<u8>() + size_of::<Token>() {
+                    return Err(TokenError::InvalidUserdata);
+                }
+                let token: &Token = unsafe { &*(&input[1] as *const u8 as *const Token) };
+                Self::Token(*token)
+            }
+            2 => {
+                if input.len() < size_of::<u8>() + size_of::<TokenAccount>() {
+                    return Err(TokenError::InvalidUserdata);
+                }
+                let account: &TokenAccount =
+                    unsafe { &*(&input[1] as *const u8 as *const TokenAccount) };
+                Self::Account(*account)
+            }
+            3 => Self::Invalid,
+            _ => return Err(TokenError::InvalidUserdata),
+        })
+    }
+
+    pub fn serialize(self: &Self, output: &mut [u8]) -> Result<()> {
+        if output.len() < size_of::<u8>() {
+            return Err(TokenError::InvalidUserdata);
+        }
+        Ok(match self {
+            Self::Unallocated => output[0] = 0,
+            Self::Token(token) => {
+                if output.len() < size_of::<u8>() + size_of::<Token>() {
+                    return Err(TokenError::InvalidUserdata);
+                }
+                output[0] = 1;
+                let value = unsafe { &mut *(&mut output[1] as *mut u8 as *mut Token) };
+                *value = *token;
+            }
+            Self::Account(account) => {
+                if output.len() < size_of::<u8>() + size_of::<TokenAccount>() {
+                    return Err(TokenError::InvalidUserdata);
+                }
+                output[0] = 2;
+                let value = unsafe { &mut *(&mut output[1] as *mut u8 as *mut TokenAccount) };
+                *value = *account;
+            }
+            Self::Invalid => output[0] = 3,
+        })
+    }
+}
+
+impl Command {
+    pub fn deserialize<'a>(input: &'a [u8]) -> Result<Self> {
+        if input.len() < size_of::<u8>() {
+            return Err(TokenError::InvalidUserdata);
+        }
+        Ok(match input[0] {
+            0 => {
+                if input.len() < size_of::<u8>() + size_of::<Token>() {
+                    return Err(TokenError::InvalidUserdata);
+                }
+                let token: &Token = unsafe { &*(&input[1] as *const u8 as *const Token) };
+                Self::NewToken(*token)
+            }
+            1 => Self::NewTokenAccount,
+            2 => {
+                if input.len() < size_of::<u8>() + size_of::<u64>() {
+                    return Err(TokenError::InvalidUserdata);
+                }
+                let amount: &u64 = unsafe { &*(&input[1] as *const u8 as *const u64) };
+                Self::Transfer(*amount)
+            }
+            3 => {
+                if input.len() < size_of::<u8>() + size_of::<u64>() {
+                    return Err(TokenError::InvalidUserdata);
+                }
+                let amount: &u64 = unsafe { &*(&input[1] as *const u8 as *const u64) };
+                Self::Approve(*amount)
+            }
+            4 => Self::SetOwner,
+            _ => return Err(TokenError::InvalidUserdata),
+        })
+    }
+
+    pub fn serialize(self: &Self, output: &mut [u8]) -> Result<()> {
+        if output.len() < size_of::<u8>() {
+            return Err(TokenError::InvalidUserdata);
+        }
+        Ok(match self {
+            Self::NewToken(token) => {
+                if output.len() < size_of::<u8>() + size_of::<Token>() {
+                    return Err(TokenError::InvalidUserdata);
+                }
+                output[0] = 0;
+                let value = unsafe { &mut *(&mut output[1] as *mut u8 as *mut Token) };
+                *value = *token;
+            }
+            Self::NewTokenAccount => output[0] = 1,
+            Self::Transfer(amount) => {
+                if output.len() < size_of::<u8>() + size_of::<u64>() {
+                    return Err(TokenError::InvalidUserdata);
+                }
+                output[0] = 2;
+                let value = unsafe { &mut *(&mut output[1] as *mut u8 as *mut u64) };
+                *value = *amount;
+            }
+            Self::Approve(amount) => {
+                if output.len() < size_of::<u8>() + size_of::<u64>() {
+                    return Err(TokenError::InvalidUserdata);
+                }
+                output[0] = 3;
+                let value = unsafe { &mut *(&mut output[1] as *mut u8 as *mut u64) };
+                *value = *amount;
+            }
+            Self::SetOwner => output[0] = 4,
+        })
     }
 }
 

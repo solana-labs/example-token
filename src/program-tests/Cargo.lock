@@ -1728,8 +1728,6 @@ version = "0.1.0"
 dependencies = [
  "num-derive 0.2.5",
  "num-traits 0.2.10",
- "serde",
- "serde_derive",
  "solana-sdk 0.22.0 (git+https://github.com/solana-labs/solana)",
  "solana-sdk-bpf-test",
 ]

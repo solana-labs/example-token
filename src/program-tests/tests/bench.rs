@@ -1,8 +1,5 @@
 use solana_bpf_loader_program::{create_vm, deserialize_parameters, serialize_parameters};
-use solana_bpf_token::{
-    simple_serde::SimpleSerde,
-    state::{Command, State, Token},
-};
+use solana_bpf_token::state::{Command, State, Token};
 use solana_sdk::{
     account::{Account, KeyedAccount},
     pubkey::Pubkey,
@@ -93,7 +90,7 @@ fn bench_transfer() {
     instruction.serialize(&mut instruction_data).unwrap();
     let mut parameter_accounts = vec![
         KeyedAccount::new(&token_key, true, &mut token_account),
-        KeyedAccount::new(&mint_key, true, &mut mint_account),
+        KeyedAccount::new(&mint_key, false, &mut mint_account),
     ];
     let (result, newtoken_count) =
         run_program(&program_id, &mut parameter_accounts[..], &instruction_data).unwrap();

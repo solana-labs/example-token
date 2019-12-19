@@ -3,7 +3,7 @@ use solana_sdk::{info, instruction_processor_utils::DecodeError};
 
 pub type Result<T> = std::result::Result<T, TokenError>;
 
-#[derive(Serialize, Debug, PartialEq, FromPrimitive)]
+#[derive(Debug, PartialEq, FromPrimitive)]
 pub enum TokenError {
     InvalidArgument,
     InvalidUserdata,
