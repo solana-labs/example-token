@@ -3,6 +3,11 @@ use crate::simple_serde::SimpleSerde;
 use serde_derive::{Deserialize, Serialize};
 use solana_sdk::{account_info::AccountInfo, info, pubkey::Pubkey};
 
+/// Return the next KeyedAccount or a NotEnoughAccountKeys instruction error
+pub fn next_account_info<'a, I: Iterator>(iter: &'a mut I) -> Result<I::Item> {
+    iter.next().ok_or(TokenError::NotEnoughAccountKeys)
+}
+
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
 pub struct TokenInfo {
     /// Total supply of tokens
@@ -10,12 +15,6 @@ pub struct TokenInfo {
 
     /// Number of base 10 digits to the right of the decimal place in the total supply
     pub decimals: u8,
-
-    /// Descriptive name of this token
-    pub name: [u8; 32],
-
-    /// Symbol for this token
-    pub symbol: [u8; 32],
 }
 
 #[derive(Clone, Debug, Default, Serialize, Deserialize, PartialEq)]
@@ -72,289 +71,254 @@ impl Default for TokenState {
     }
 }
 
-impl TokenState {
-    pub fn process_newtoken(
-        accounts: &mut [AccountInfo],
+impl<'a> TokenState {
+    pub fn process_newtoken<I: Iterator<Item = &'a mut AccountInfo<'a>>>(
+        account_info_iter: &mut I,
         token_info: TokenInfo,
-        input_accounts: &[TokenState],
-        output_accounts: &mut Vec<(usize, TokenState)>,
     ) -> Result<()> {
-        if input_accounts.len() != 2 {
-            info!("Error: Expected 2 accounts");
-            return Err(TokenError::InvalidArgument);
-        }
+        let new_account = next_account_info(account_info_iter)?;
+        let dest_account = next_account_info(account_info_iter)?;
 
-        if let TokenState::Account(dest_account) = &input_accounts[1] {
-            if accounts[0].key != &dest_account.token || !accounts[0].is_signer {
-                info!("Error: account 1 token mismatch");
+        if let TokenState::Account(mut dest_token_account_info) =
+            TokenState::deserialize(dest_account.data)?
+        {
+            if new_account.key != &dest_token_account_info.token || !new_account.is_signer {
+                info!("Error: token mismatch");
                 return Err(TokenError::InvalidArgument);
             }
 
-            if dest_account.delegate.is_some() {
-                info!("Error: account 1 is a delegate and cannot accept tokens");
+            if dest_token_account_info.delegate.is_some() {
+                info!("Error: Destination account is a delegate and cannot accept tokens");
                 return Err(TokenError::InvalidArgument);
             }
 
-            let mut output_dest_account = dest_account.clone();
-            output_dest_account.amount = token_info.supply;
-            output_accounts.push((1, TokenState::Account(output_dest_account)));
+            dest_token_account_info.amount = token_info.supply;
+            TokenState::Account(dest_token_account_info).serialize(dest_account.data)?;
         } else {
-            info!("Error: account 1 invalid");
+            info!("Error: Destination account is not an Account");
             return Err(TokenError::InvalidArgument);
         }
 
-        if input_accounts[0] != TokenState::Unallocated {
-            info!("Error: account 0 not available");
+        if TokenState::Unallocated != TokenState::deserialize(new_account.data)? {
+            info!("Error: new account is already allocated");
             return Err(TokenError::InvalidArgument);
         }
-        output_accounts.push((0, TokenState::Token(token_info)));
-        Ok(())
+        TokenState::Token(token_info).serialize(new_account.data)
     }
 
-    pub fn process_newaccount(
-        accounts: &mut [AccountInfo],
-        input_accounts: &[TokenState],
-        output_accounts: &mut Vec<(usize, TokenState)>,
+    pub fn process_newaccount<I: Iterator<Item = &'a mut AccountInfo<'a>>>(
+        account_info_iter: &mut I,
     ) -> Result<()> {
-        if input_accounts.len() < 3 {
-            info!("Error: Expected 3 accounts");
-            return Err(TokenError::InvalidArgument);
-        }
-        if input_accounts[0] != TokenState::Unallocated {
-            info!("Error: account 0 is already allocated");
+        let new_account = next_account_info(account_info_iter)?;
+        let owner_account = next_account_info(account_info_iter)?;
+        let token_account = next_account_info(account_info_iter)?;
+
+        if TokenState::Unallocated != TokenState::deserialize(new_account.data)? {
+            info!("Error: account is already allocated");
             return Err(TokenError::InvalidArgument);
         }
         let mut token_account_info = TokenAccountInfo {
-            token: *accounts[2].key,
-            owner: *accounts[1].key,
+            token: *token_account.key,
+            owner: *owner_account.key,
             amount: 0,
             delegate: None,
         };
-        if input_accounts.len() >= 4 {
+        if let Ok(delegate_account) = next_account_info(account_info_iter) {
             token_account_info.delegate = Some(TokenAccountDelegateInfo {
-                source: *accounts[3].key,
+                source: *delegate_account.key,
                 original_amount: 0,
             });
         }
-        output_accounts.push((0, TokenState::Account(token_account_info)));
-        Ok(())
+        TokenState::Account(token_account_info).serialize(new_account.data)
     }
 
-    pub fn process_transfer(
-        accounts: &mut [AccountInfo],
+    pub fn process_transfer<I: Iterator<Item = &'a mut AccountInfo<'a>>>(
+        account_info_iter: &mut I,
         amount: u64,
-        input_accounts: &[TokenState],
-        output_accounts: &mut Vec<(usize, TokenState)>,
     ) -> Result<()> {
-        if input_accounts.len() < 3 {
-            info!("Error: Expected 3 accounts");
-            return Err(TokenError::InvalidArgument);
-        }
+        let owner_account = next_account_info(account_info_iter)?;
+        let source_account = next_account_info(account_info_iter)?;
+        let dest_account = next_account_info(account_info_iter)?;
 
-        if let (TokenState::Account(source_account), TokenState::Account(dest_account)) =
-            (&input_accounts[1], &input_accounts[2])
-        {
-            if source_account.token != dest_account.token {
-                info!("Error: account 1/2 token mismatch");
+        if let (
+            TokenState::Account(mut source_account_info),
+            TokenState::Account(mut dest_account_info),
+        ) = (
+            TokenState::deserialize(source_account.data)?,
+            TokenState::deserialize(dest_account.data)?,
+        ) {
+            if source_account_info.token != dest_account_info.token {
+                info!("Error: token mismatch");
                 return Err(TokenError::InvalidArgument);
             }
 
-            if dest_account.delegate.is_some() {
-                info!("Error: account 2 is a delegate and cannot accept tokens");
+            if dest_account_info.delegate.is_some() {
+                info!("Error: destination account is a delegate and cannot accept tokens");
                 return Err(TokenError::InvalidArgument);
             }
 
-            if accounts[0].key != &source_account.owner || !accounts[0].is_signer {
-                info!("Error: owner of account 1 not present");
+            if owner_account.key != &source_account_info.owner || !owner_account.is_signer {
+                info!("Error: source account owner not present");
                 return Err(TokenError::InvalidArgument);
             }
 
-            if source_account.amount < amount {
-                return Err(TokenError::InsufficentFunds);
+            if source_account_info.amount < amount {
+                return Err(TokenError::InsufficientFunds);
             }
 
-            let mut output_source_account = source_account.clone();
-            output_source_account.amount -= amount;
-            output_accounts.push((1, TokenState::Account(output_source_account)));
+            source_account_info.amount -= amount;
+            TokenState::Account(source_account_info.clone()).serialize(source_account.data)?;
 
-            if let Some(ref delegate_info) = source_account.delegate {
-                if input_accounts.len() != 4 {
-                    info!("Error: Expected 4 accounts");
-                    return Err(TokenError::InvalidArgument);
-                }
+            if let Some(ref delegate_info) = source_account_info.delegate {
+                let delegate_account_info = source_account_info.clone();
+                let source_account = next_account_info(account_info_iter)?;
 
-                let delegate_account = source_account;
-                if let TokenState::Account(source_account) = &input_accounts[3] {
-                    if source_account.token != delegate_account.token {
-                        info!("Error: account 1/3 token mismatch");
+                if let TokenState::Account(mut source_account_info) =
+                    TokenState::deserialize(source_account.data)?
+                {
+                    if source_account_info.token != delegate_account_info.token {
+                        info!("Error: token mismatch");
                         return Err(TokenError::InvalidArgument);
                     }
-                    if accounts[3].key != &delegate_info.source {
-                        info!("Error: Account 1 is not a delegate of account 3");
+                    if source_account.key != &delegate_info.source {
+                        info!("Error: Source account is not a delegate payee");
                         return Err(TokenError::InvalidArgument);
                     }
 
-                    if source_account.amount < amount {
-                        return Err(TokenError::InsufficentFunds);
+                    if source_account_info.amount < amount {
+                        return Err(TokenError::InsufficientFunds);
                     }
 
-                    let mut output_source_account = source_account.clone();
-                    output_source_account.amount -= amount;
-                    output_accounts.push((3, TokenState::Account(output_source_account)));
+                    source_account_info.amount -= amount;
+                    TokenState::Account(source_account_info).serialize(source_account.data)?;
                 } else {
-                    info!("Error: account 3 is an invalid account");
+                    info!("Error: payee is an invalid account");
                     return Err(TokenError::InvalidArgument);
                 }
             }
 
-            let mut output_dest_account = dest_account.clone();
-            output_dest_account.amount += amount;
-            output_accounts.push((2, TokenState::Account(output_dest_account)));
+            dest_account_info.amount -= amount;
+            TokenState::Account(dest_account_info).serialize(dest_account.data)?;
         } else {
-            info!("Error: account 1 and/or 2 are invalid accounts");
+            info!("Error: destination and/or source accounts are invalid");
             return Err(TokenError::InvalidArgument);
         }
         Ok(())
     }
 
-    pub fn process_approve(
-        accounts: &mut [AccountInfo],
+    pub fn process_approve<I: Iterator<Item = &'a mut AccountInfo<'a>>>(
+        account_info_iter: &mut I,
         amount: u64,
-        input_accounts: &[TokenState],
-        output_accounts: &mut Vec<(usize, TokenState)>,
     ) -> Result<()> {
-        if input_accounts.len() != 3 {
-            info!("Error: Expected 3 accounts");
-            return Err(TokenError::InvalidArgument);
-        }
+        let owner_account = next_account_info(account_info_iter)?;
+        let source_account = next_account_info(account_info_iter)?;
+        let delegate_account = next_account_info(account_info_iter)?;
 
-        if let (TokenState::Account(source_account), TokenState::Account(delegate_account)) =
-            (&input_accounts[1], &input_accounts[2])
-        {
-            if source_account.token != delegate_account.token {
-                info!("Error: account 1/2 token mismatch");
+        if let (
+            TokenState::Account(source_account_info),
+            TokenState::Account(mut delegate_account_info),
+        ) = (
+            TokenState::deserialize(source_account.data)?,
+            TokenState::deserialize(delegate_account.data)?,
+        ) {
+            if source_account_info.token != delegate_account_info.token {
+                info!("Error: token mismatch");
                 return Err(TokenError::InvalidArgument);
             }
 
-            if accounts[0].key != &source_account.owner || !accounts[0].is_signer {
-                info!("Error: owner of account 1 not present");
+            if owner_account.key != &source_account_info.owner || !owner_account.is_signer {
+                info!("Error: source account owner is not present");
                 return Err(TokenError::InvalidArgument);
             }
 
-            if source_account.delegate.is_some() {
-                info!("Error: account 1 is a delegate");
+            if source_account_info.delegate.is_some() {
+                info!("Error: source account is a delegate");
                 return Err(TokenError::InvalidArgument);
             }
 
-            match &delegate_account.delegate {
+            match &delegate_account_info.delegate {
                 None => {
-                    info!("Error: account 2 is not a delegate");
+                    info!("Error: delegate account is not a delegate");
                     return Err(TokenError::InvalidArgument);
                 }
                 Some(delegate_info) => {
-                    if accounts[1].key != &delegate_info.source {
-                        info!("Error: account 2 is not a delegate of account 1");
+                    if source_account.key != &delegate_info.source {
+                        info!("Error: delegate account is not a delegate of the source account");
                         return Err(TokenError::InvalidArgument);
                     }
 
-                    let mut output_delegate_account = delegate_account.clone();
-                    output_delegate_account.amount = amount;
-                    output_delegate_account.delegate = Some(TokenAccountDelegateInfo {
+                    delegate_account_info.amount = amount;
+                    delegate_account_info.delegate = Some(TokenAccountDelegateInfo {
                         source: delegate_info.source,
                         original_amount: amount,
                     });
-                    output_accounts.push((2, TokenState::Account(output_delegate_account)));
+                    TokenState::Account(delegate_account_info).serialize(delegate_account.data)?;
                 }
             }
         } else {
-            info!("Error: account 1 and/or 2 are invalid accounts");
+            info!("Error: destination and/or source accounts are not Accounts");
             return Err(TokenError::InvalidArgument);
         }
         Ok(())
     }
 
-    pub fn process_setowner(
-        accounts: &mut [AccountInfo],
-        input_accounts: &[TokenState],
-        output_accounts: &mut Vec<(usize, TokenState)>,
+    pub fn process_setowner<I: Iterator<Item = &'a mut AccountInfo<'a>>>(
+        account_info_iter: &mut I,
     ) -> Result<()> {
-        if input_accounts.len() < 3 {
-            info!("Error: Expected 3 accounts");
-            return Err(TokenError::InvalidArgument);
-        }
+        let owner_account = next_account_info(account_info_iter)?;
+        let dest_account = next_account_info(account_info_iter)?;
+        let new_owner_account = next_account_info(account_info_iter)?;
 
-        if let TokenState::Account(source_account) = &input_accounts[1] {
-            if accounts[0].key != &source_account.owner || !accounts[0].is_signer {
-                info!("Error: owner of account 1 not present");
+        if let TokenState::Account(mut dest_account_info) =
+            TokenState::deserialize(dest_account.data)?
+        {
+            if owner_account.key != &dest_account_info.owner || !owner_account.is_signer {
+                info!("Error: destination account owner is not present");
                 return Err(TokenError::InvalidArgument);
             }
 
-            let mut output_source_account = source_account.clone();
-            output_source_account.owner = *accounts[2].key;
-            output_accounts.push((1, TokenState::Account(output_source_account)));
+            dest_account_info.owner = *new_owner_account.key;
+            TokenState::Account(dest_account_info).serialize(dest_account.data)?;
         } else {
-            info!("Error: account 1 is invalid");
+            info!("Error: destination account is invalid");
             return Err(TokenError::InvalidArgument);
         }
         Ok(())
     }
 
-    pub fn process(program_id: &Pubkey, accounts: &mut [AccountInfo], input: &[u8]) -> Result<()> {
+    pub fn process(
+        _program_id: &Pubkey,
+        accounts: &'a mut [AccountInfo<'a>],
+        input: &[u8],
+    ) -> Result<()> {
         let command = TokenInstruction::deserialize(input)?;
+        let account_info_iter = &mut accounts.iter_mut();
 
-        let input_accounts: Vec<TokenState> = accounts
-            .iter()
-            .map(|account_info| {
-                if account_info.owner == program_id {
-                    match Self::deserialize(&account_info.data) {
-                        Ok(token_state) => token_state,
-                        Err(_) => {
-                            info!("Error: deserialize failed");
-                            TokenState::Invalid
-                        }
-                    }
-                } else {
-                    TokenState::Invalid
-                }
-            })
-            .collect();
-
-        let mut output_accounts: Vec<(_, _)> = vec![];
-
-        info!(0, 0, 0, 0, line!());
         match command {
             TokenInstruction::NewToken(token_info) => {
                 info!("TokenInstruction: NewToken");
-                Self::process_newtoken(accounts, token_info, &input_accounts, &mut output_accounts)?
+                Self::process_newtoken(account_info_iter, token_info)
             }
             TokenInstruction::NewTokenAccount => {
                 info!("TokenInstruction: NewTokenAccount");
-                Self::process_newaccount(accounts, &input_accounts, &mut output_accounts)?
+                Self::process_newaccount(account_info_iter)
             }
 
             TokenInstruction::Transfer(amount) => {
                 info!("TokenInstruction: Transfer");
-                Self::process_transfer(accounts, amount, &input_accounts, &mut output_accounts)?
+                Self::process_transfer(account_info_iter, amount)
             }
 
             TokenInstruction::Approve(amount) => {
                 info!("TokenInstruction: Approve");
-                Self::process_approve(accounts, amount, &input_accounts, &mut output_accounts)?
+                Self::process_approve(account_info_iter, amount)
             }
 
             TokenInstruction::SetOwner => {
                 info!("TokenInstruction: SetOwner");
-                Self::process_setowner(accounts, &input_accounts, &mut output_accounts)?
+                Self::process_setowner(account_info_iter)
             }
         }
-
-        info!(0, 0, 0, 0, line!());
-        for (index, account) in &output_accounts {
-            Self::serialize(account, &mut accounts[*index].data)?;
-            info!(accounts[*index].data.len(), 0, 0, 0, 0);
-        }
-        info!(0, 0, 0, 0, line!());
-        Ok(())
     }
 }
 
@@ -384,8 +348,6 @@ mod test {
         let account = TokenState::Token(TokenInfo {
             supply: 12345,
             decimals: 2,
-            // name: "A test token".to_string(),
-            // symbol: "TEST".to_string(),
         });
         account.serialize(&mut data).unwrap();
         assert_eq!(TokenState::deserialize(&data), Ok(account));

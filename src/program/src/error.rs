@@ -7,7 +7,8 @@ pub type Result<T> = std::result::Result<T, TokenError>;
 pub enum TokenError {
     InvalidArgument,
     InvalidUserdata,
-    InsufficentFunds,
+    InsufficientFunds,
+    NotEnoughAccountKeys,
     NotOwner,
 }
 
@@ -16,7 +17,8 @@ impl TokenError {
         match self {
             TokenError::InvalidArgument => info!("Error: InvalidArgument"),
             TokenError::InvalidUserdata => info!("Error: InvalidUserData"),
-            TokenError::InsufficentFunds => info!("Error: InsufficentFunds"),
+            TokenError::InsufficientFunds => info!("Error: InsufficientFunds"),
+            TokenError::NotEnoughAccountKeys => info!("Error: NotEnoughAccountKeys"),
             TokenError::NotOwner => info!("Error: NotOwner"),
         }
     }

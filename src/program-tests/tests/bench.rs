@@ -15,14 +15,6 @@ const BASELINE_TRANSFER_COUNT: u64 = 31032;
 
 const PLATFORM_FILE_EXTENSION_BPF: &str = "so";
 
-fn bytes_to_array(bytes: &[u8]) -> [u8; 32] {
-    let mut array = [0; 32];
-    let mut vec = bytes.to_vec();
-    vec.resize(array.len(), 0);
-    array.copy_from_slice(&vec);
-    array
-}
-
 fn load_program(name: &str) -> Vec<u8> {
     let mut path = PathBuf::new();
     path.push("../program/target/bpfel-unknown-unknown/release");
@@ -97,8 +89,6 @@ fn bench_transfer() {
     let instruction = TokenInstruction::NewToken(TokenInfo {
         supply: 1000,
         decimals: 2,
-        name: bytes_to_array("Token".as_bytes()),
-        symbol: bytes_to_array("TOK".as_bytes()),
     });
     instruction.serialize(&mut instruction_data).unwrap();
     let mut parameter_accounts = vec![
@@ -140,6 +130,19 @@ fn bench_transfer() {
     assert!(transfer_count <= BASELINE_TRANSFER_COUNT);
 }
 
+// 11540;
+// 19973;
+// 31032;
+// simple serde
 // 3302
 // 5643
 // 6377
+// Remove name/symbol
+// 2887
+// 509
+// 5728
+// rewrite account handling
+// 940
+// 1320
+// 2253
+// cleanup messages
