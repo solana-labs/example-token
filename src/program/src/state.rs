@@ -172,8 +172,8 @@ impl<'a> State {
             source_account.amount -= amount;
             State::Account(source_account.clone()).serialize(source_account_info.data)?;
 
-            if let Some(ref delegate) = source_account.delegate {
-                let delegate_account = source_account.clone();
+            if let Some(ref delegate) = source_account.delegate.clone() {
+                let delegate_account = source_account;
                 let source_account_info = next_account_info(account_info_iter)?;
 
                 if let State::Account(mut source_account) =

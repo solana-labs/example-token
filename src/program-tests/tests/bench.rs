@@ -10,8 +10,8 @@ use solana_sdk::{
 use std::{fs::File, io::Error, io::Read, mem::size_of, path::PathBuf};
 
 const BASELINE_NEWTOKENACCOUNT_COUNT: u64 = 920;
-const BASELINE_NEWTOKEN_COUNT: u64 = 1320;
-const BASELINE_TRANSFER_COUNT: u64 = 2236;
+const BASELINE_NEWTOKEN_COUNT: u64 = 1302;
+const BASELINE_TRANSFER_COUNT: u64 = 2233;
 
 const PLATFORM_FILE_EXTENSION_BPF: &str = "so";
 
