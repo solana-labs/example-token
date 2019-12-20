@@ -4,6 +4,7 @@ use std::mem::size_of;
 
 /// Represents a unique token type that all like token accounts must be
 /// associated with
+#[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct Token {
     /// Total supply of tokens
@@ -13,6 +14,7 @@ pub struct Token {
 }
 
 /// Delegation details
+#[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct TokenAccountDelegate {
     /// The source account for the tokens
@@ -22,6 +24,7 @@ pub struct TokenAccountDelegate {
 }
 
 /// Account that holds or may delegate tokens
+#[repr(C)]
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub struct TokenAccount {
     /// The kind of token this account holds
@@ -37,6 +40,7 @@ pub struct TokenAccount {
 }
 
 /// Possible states to accounts owned by the token program
+#[repr(C)]
 #[derive(Clone, Debug, PartialEq)]
 pub enum State {
     /// Unallocated
@@ -50,6 +54,7 @@ pub enum State {
 }
 
 /// Commands supported by the token program
+#[repr(C)]
 #[derive(Clone, Debug, PartialEq)]
 pub enum Command {
     /// key 0 - New token
@@ -201,7 +206,7 @@ impl<'a> State {
                 }
             }
 
-            dest_account.amount -= amount;
+            dest_account.amount += amount;
             State::Account(dest_account).serialize(dest_account_info.data)?;
         } else {
             info!("Error: destination and/or source accounts are invalid");
@@ -291,7 +296,6 @@ impl<'a> State {
         input: &[u8],
     ) -> Result<()> {
         let command = Command::deserialize(input)?;
-        info!("command deserialized");
         let account_info_iter = &mut accounts.iter_mut();
 
         match command {

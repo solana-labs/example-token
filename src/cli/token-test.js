@@ -65,7 +65,7 @@ export async function loadTokenProgram(): Promise<void> {
     (BpfLoader.getMinNumSignatures(data.length) + NUM_RETRIES);
   const from = await newAccountWithLamports(connection, fees);
 
-  console.log('Loading Token program, may take a bit...');
+  console.log('Loading Token program...');
   programId = await BpfLoader.load(connection, from, data);
 }
 
@@ -76,8 +76,6 @@ export async function createNewToken(): Promise<void> {
     connection,
     initialOwner,
     new TokenAmount(10000),
-    'Test token',
-    'TEST',
     2,
     programId,
   );
@@ -85,8 +83,6 @@ export async function createNewToken(): Promise<void> {
   const tokenInfo = await testToken.tokenInfo();
   assert(tokenInfo.supply.toNumber() == 10000);
   assert(tokenInfo.decimals == 2);
-  assert(tokenInfo.name == 'Test token');
-  assert(tokenInfo.symbol == 'TEST');
 
   const accountInfo = await testToken.accountInfo(initialOwnerTokenAccount);
   assert(accountInfo.token.equals(testToken.token));
