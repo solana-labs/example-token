@@ -15,8 +15,8 @@ edition = "2018"
 num-derive = "0.2"
 num-traits = "0.2"
 solana-bpf-token = { path = "../program" }
-solana-sdk = { path = "../../../../active/solana/sdk", default-features = false, features=["program"] }
-solana-sdk-bpf-test = { path = "../../../../active/solana/sdk/bpf/rust/test", default-features = false }
-solana-bpf-loader-program = { path = "../../../../active/solana/programs/bpf_loader" }
-solana-logger = { path = "../../../../active/solana/logger" }
+solana-sdk = { git = "https://github.com/solana-labs/solana", default-features = false, features=["program"] }
+solana-sdk-bpf-test = { git = "https://github.com/solana-labs/solana", default-features = false }
+solana-bpf-loader-program = { git = "https://github.com/solana-labs/solana" }
+solana-logger = { git = "https://github.com/solana-labs/solana" }
 

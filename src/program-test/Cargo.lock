@@ -1728,6 +1728,7 @@ checksum = "44e59e0c9fa00817912ae6e4e6e3c4fe04455e75699d06eedc7d85917ed8e8f4"
 [[package]]
 name = "solana-bpf-loader-program"
 version = "0.23.0"
+source = "git+https://github.com/solana-labs/solana#7002ccb8669de15d82337b958cc73c3f0d84cb7f"
 dependencies = [
  "bincode",
  "byteorder",
@@ -1765,6 +1766,7 @@ dependencies = [
 [[package]]
 name = "solana-crate-features"
 version = "0.23.0"
+source = "git+https://github.com/solana-labs/solana#7002ccb8669de15d82337b958cc73c3f0d84cb7f"
 dependencies = [
  "backtrace",
  "bytes",
@@ -1788,6 +1790,7 @@ dependencies = [
 [[package]]
 name = "solana-logger"
 version = "0.23.0"
+source = "git+https://github.com/solana-labs/solana#7002ccb8669de15d82337b958cc73c3f0d84cb7f"
 dependencies = [
  "env_logger 0.7.1",
  "lazy_static",
@@ -1797,6 +1800,7 @@ dependencies = [
 [[package]]
 name = "solana-sdk"
 version = "0.23.0"
+source = "git+https://github.com/solana-labs/solana#7002ccb8669de15d82337b958cc73c3f0d84cb7f"
 dependencies = [
  "assert_matches",
  "bincode",
@@ -1829,10 +1833,12 @@ dependencies = [
 [[package]]
 name = "solana-sdk-bpf-test"
 version = "0.23.0"
+source = "git+https://github.com/solana-labs/solana#7002ccb8669de15d82337b958cc73c3f0d84cb7f"
 
 [[package]]
 name = "solana-sdk-macro"
 version = "0.23.0"
+source = "git+https://github.com/solana-labs/solana#7002ccb8669de15d82337b958cc73c3f0d84cb7f"
 dependencies = [
  "bs58",
  "proc-macro2 1.0.6",
