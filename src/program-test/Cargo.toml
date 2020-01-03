@@ -1,4 +1,6 @@
 
+# Note: This crate must be built using do.sh
+
 [package]
 name = "solana-bpf-token-tests"
 version = "0.1.0"
@@ -9,9 +11,12 @@ license = "Apache-2.0"
 homepage = "https://solana.com/"
 edition = "2018"
 
-[dev_dependencies]
-solana-bpf-loader-program = { path = "../../../../active/solana/programs/bpf_loader" }
+[dependencies]
+num-derive = "0.2"
+num-traits = "0.2"
 solana-bpf-token = { path = "../program" }
+solana-sdk = { path = "../../../../active/solana/sdk", default-features = false, features=["program"] }
+solana-sdk-bpf-test = { path = "../../../../active/solana/sdk/bpf/rust/test", default-features = false }
+solana-bpf-loader-program = { path = "../../../../active/solana/programs/bpf_loader" }
 solana-logger = { path = "../../../../active/solana/logger" }
-solana-sdk = { path = "../../../../active/solana/sdk/" }
 

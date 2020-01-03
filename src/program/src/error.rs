@@ -5,21 +5,27 @@ pub type Result<T> = std::result::Result<T, TokenError>;
 
 #[derive(Debug, PartialEq, FromPrimitive)]
 pub enum TokenError {
+    MissingSigner,
     InvalidArgument,
     InvalidUserdata,
     InsufficientFunds,
     NotEnoughAccountKeys,
-    NotOwner,
+    TokenMismatch,
+    NotDelegate,
+    NoOwner,
 }
 
 impl TokenError {
     pub fn print(&self) {
         match self {
+            TokenError::MissingSigner => info!("Error: MissingSigner"),
             TokenError::InvalidArgument => info!("Error: InvalidArgument"),
-            TokenError::InvalidUserdata => info!("Error: InvalidUserData"),
+            TokenError::InvalidUserdata => info!("Error: InvalidUserdata"),
             TokenError::InsufficientFunds => info!("Error: InsufficientFunds"),
             TokenError::NotEnoughAccountKeys => info!("Error: NotEnoughAccountKeys"),
-            TokenError::NotOwner => info!("Error: NotOwner"),
+            TokenError::TokenMismatch => info!("Error: TokenMismatch"),
+            TokenError::NotDelegate => info!("Error: NotDelegate"),
+            TokenError::NoOwner => info!("Error: NoOwner"),
         }
     }
 }

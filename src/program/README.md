@@ -15,6 +15,8 @@ Unit tests contained within this project can be built via:
 
 `$ ./do.sh test`
 
+For additional system tests refer to [program-test](`../program-test`).  System tests are separated into a different project due to conflicts with dependency features
+
 ### Clippy
 
 Clippy is also supported via:
