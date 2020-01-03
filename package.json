@@ -17,7 +17,7 @@
     "bpf-sdk:update": "node_modules/@solana/web3.js/bin/bpf-sdk-install.sh",
     "build:program": "./src/program/do.sh build",
     "clean:program": "./src/program/do.sh clean",
-    "test:program": "npm run build:program && ./src/program/do.sh test -- --nocapture",
+    "test:program": "npm run build:program && ./src/program/do.sh test",
     "localnet:update": "solana-localnet update",
     "localnet:up": "set -x; solana-localnet down; set -e; solana-localnet up",
     "localnet:down": "solana-localnet down",
