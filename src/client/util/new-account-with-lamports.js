@@ -20,7 +20,7 @@ export async function newAccountWithLamports(
     if (--retries <= 0) {
       break;
     }
-    console.log('Airdrop retry ' +  retries);
+    console.log('Airdrop retry ' + retries);
   }
   throw new Error(`Airdrop of ${lamports} failed`);
 }

@@ -71,6 +71,7 @@ type TokenInfo = {|
  * @private
  */
 const TokenInfoLayout = BufferLayout.struct([
+  BufferLayout.u8('state'),
   Layout.uint64('supply'),
   BufferLayout.u8('decimals'),
 ]);
@@ -156,6 +157,32 @@ export class Token {
   }
 
   /**
+   * Get the minimum balance for the token to be rent exempt
+   *
+   * @return Number of lamports required
+   */
+  static async getMinBalanceRentForExemptToken(
+    connection: Connection,
+  ): Promise<number> {
+    return await connection.getMinimumBalanceForRentExemption(
+      TokenInfoLayout.span,
+    );
+  }
+
+  /**
+   * Get the minimum balance for the token account to be rent exempt
+   *
+   * @return Number of lamports required
+   */
+  static async getMinBalanceRentForExemptTokenAccount(
+    connection: Connection,
+  ): Promise<number> {
+    return await connection.getMinimumBalanceForRentExemption(
+      TokenAccountInfoLayout.span,
+    );
+  }
+
+  /**
    * Create a new Token
    *
    * @param connection The connection to use
@@ -197,11 +224,15 @@ export class Token {
       data = data.slice(0, encodeLength);
     }
 
+    const balanceNeeded = await Token.getMinBalanceRentForExemptToken(
+      connection,
+    );
+
     // Allocate memory for the tokenAccount account
     transaction = SystemProgram.createAccount(
       owner.publicKey,
       tokenAccount.publicKey,
-      1,
+      balanceNeeded,
       1 + data.length,
       programId,
     );
@@ -259,11 +290,15 @@ export class Token {
       data,
     );
 
+    const balanceNeeded = await Token.getMinBalanceRentForExemptTokenAccount(
+      this.connection,
+    );
+
     // Allocate memory for the token
     transaction = SystemProgram.createAccount(
       owner.publicKey,
       tokenAccount.publicKey,
-      1,
+      balanceNeeded,
       TokenAccountInfoLayout.span,
       this.programId,
     );
@@ -313,10 +348,10 @@ export class Token {
 
     const data = Buffer.from(accountInfo.data);
 
-    if (data.readUInt8(0) !== 1) {
-      throw new Error(`Invalid token data`);
+    const tokenInfo = TokenInfoLayout.decode(data);
+    if (tokenInfo.state !== 1) {
+      throw new Error(`Invalid token account data`);
     }
-    const tokenInfo = TokenInfoLayout.decode(data, 1);
     tokenInfo.supply = TokenAmount.fromBuffer(tokenInfo.supply);
     return tokenInfo;
   }
@@ -333,7 +368,7 @@ export class Token {
     }
 
     const data = Buffer.from(accountInfo.data);
-    const tokenAccountInfo = TokenAccountInfoLayout.decode(data, 0);
+    const tokenAccountInfo = TokenAccountInfoLayout.decode(data);
 
     if (tokenAccountInfo.state !== 2) {
       throw new Error(`Invalid token account data`);
