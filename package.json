@@ -6,6 +6,7 @@
     "type": "git",
     "url": "https://github.com/solana-labs/example-token"
   },
+  "testnetDefaultChannel": "beta",
   "scripts": {
     "start": "babel-node src/cli/main.js",
     "lint": "npm run pretty && eslint .",
@@ -15,7 +16,9 @@
     "lint:watch": "watch 'npm run lint:fix' . --wait=1",
     "bpf-sdk:update": "node_modules/@solana/web3.js/bin/bpf-sdk-install.sh",
     "build:program": "./src/program/do.sh build",
-    "clean:program": "./src/program/do.sh clean",
+    "clean:program": "./src/program/do.sh clean && cargo clean --manifest-path ./src/program-test/Cargo.toml",
+    "test:program": "./src/program/do.sh test",
+    "bench:program": "npm run build:program && cargo test --manifest-path ./src/program-test/Cargo.toml -- --nocapture",
     "localnet:update": "solana-localnet update",
     "localnet:up": "set -x; solana-localnet down; set -e; solana-localnet up",
     "localnet:down": "solana-localnet down",

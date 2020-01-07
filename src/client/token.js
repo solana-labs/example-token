@@ -65,26 +65,15 @@ type TokenInfo = {|
    * Number of base 10 digits to the right of the decimal place
    */
   decimals: number,
-
-  /**
-   * Descriptive name of this token
-   */
-  name: string,
-
-  /**
-   * Symbol for this token
-   */
-  symbol: string,
 |};
 
 /**
  * @private
  */
 const TokenInfoLayout = BufferLayout.struct([
+  BufferLayout.u8('state'),
   Layout.uint64('supply'),
   BufferLayout.u8('decimals'),
-  Layout.rustString('name'),
-  Layout.rustString('symbol'),
 ]);
 
 /**
@@ -126,10 +115,11 @@ type TokenAccountInfo = {|
  * @private
  */
 const TokenAccountInfoLayout = BufferLayout.struct([
+  BufferLayout.u8('state'),
   Layout.publicKey('token'),
   Layout.publicKey('owner'),
   Layout.uint64('amount'),
-  BufferLayout.u8('sourceOption'),
+  BufferLayout.nu64('sourceOption'),
   Layout.publicKey('source'),
   Layout.uint64('originalAmount'),
 ]);
@@ -167,13 +157,37 @@ export class Token {
   }
 
   /**
+   * Get the minimum balance for the token to be rent exempt
+   *
+   * @return Number of lamports required
+   */
+  static async getMinBalanceRentForExemptToken(
+    connection: Connection,
+  ): Promise<number> {
+    return await connection.getMinimumBalanceForRentExemption(
+      TokenInfoLayout.span,
+    );
+  }
+
+  /**
+   * Get the minimum balance for the token account to be rent exempt
+   *
+   * @return Number of lamports required
+   */
+  static async getMinBalanceRentForExemptTokenAccount(
+    connection: Connection,
+  ): Promise<number> {
+    return await connection.getMinimumBalanceForRentExemption(
+      TokenAccountInfoLayout.span,
+    );
+  }
+
+  /**
    * Create a new Token
    *
    * @param connection The connection to use
    * @param owner User account that will own the returned Token Account
    * @param supply Total supply of the new token
-   * @param name Descriptive name of this token
-   * @param symbol Symbol for this token
    * @param decimals Location of the decimal place
    * @param programId Optional token programId, uses the system programId by default
    * @return Token object for the newly minted token, Public key of the Token Account holding the total supply of new tokens
@@ -182,8 +196,6 @@ export class Token {
     connection: Connection,
     owner: Account,
     supply: TokenAmount,
-    name: string,
-    symbol: string,
     decimals: number,
     programId: PublicKey,
   ): Promise<TokenAndPublicKey> {
@@ -194,11 +206,9 @@ export class Token {
     let transaction;
 
     const dataLayout = BufferLayout.struct([
-      BufferLayout.u32('instruction'),
+      BufferLayout.u8('instruction'),
       Layout.uint64('supply'),
-      BufferLayout.u8('decimals'),
-      Layout.rustString('name'),
-      Layout.rustString('symbol'),
+      BufferLayout.nu64('decimals'),
     ]);
 
     let data = Buffer.alloc(1024);
@@ -208,19 +218,21 @@ export class Token {
           instruction: 0, // NewToken instruction
           supply: supply.toBuffer(),
           decimals,
-          name,
-          symbol,
         },
         data,
       );
       data = data.slice(0, encodeLength);
     }
 
+    const balanceNeeded = await Token.getMinBalanceRentForExemptToken(
+      connection,
+    );
+
     // Allocate memory for the tokenAccount account
     transaction = SystemProgram.createAccount(
       owner.publicKey,
       tokenAccount.publicKey,
-      1,
+      balanceNeeded,
       1 + data.length,
       programId,
     );
@@ -268,7 +280,7 @@ export class Token {
     const tokenAccount = new Account();
     let transaction;
 
-    const dataLayout = BufferLayout.struct([BufferLayout.u32('instruction')]);
+    const dataLayout = BufferLayout.struct([BufferLayout.u8('instruction')]);
 
     const data = Buffer.alloc(dataLayout.span);
     dataLayout.encode(
@@ -278,12 +290,16 @@ export class Token {
       data,
     );
 
+    const balanceNeeded = await Token.getMinBalanceRentForExemptTokenAccount(
+      this.connection,
+    );
+
     // Allocate memory for the token
     transaction = SystemProgram.createAccount(
       owner.publicKey,
       tokenAccount.publicKey,
-      1,
-      1 + TokenAccountInfoLayout.span,
+      balanceNeeded,
+      TokenAccountInfoLayout.span,
       this.programId,
     );
     await sendAndConfirmTransaction(
@@ -332,10 +348,10 @@ export class Token {
 
     const data = Buffer.from(accountInfo.data);
 
-    if (data.readUInt8(0) !== 1) {
-      throw new Error(`Invalid token data`);
+    const tokenInfo = TokenInfoLayout.decode(data);
+    if (tokenInfo.state !== 1) {
+      throw new Error(`Invalid token account data`);
     }
-    const tokenInfo = TokenInfoLayout.decode(data, 1);
     tokenInfo.supply = TokenAmount.fromBuffer(tokenInfo.supply);
     return tokenInfo;
   }
@@ -352,11 +368,11 @@ export class Token {
     }
 
     const data = Buffer.from(accountInfo.data);
-    if (data.readUInt8(0) !== 2) {
+    const tokenAccountInfo = TokenAccountInfoLayout.decode(data);
+
+    if (tokenAccountInfo.state !== 2) {
       throw new Error(`Invalid token account data`);
     }
-    const tokenAccountInfo = TokenAccountInfoLayout.decode(data, 1);
-
     tokenAccountInfo.token = new PublicKey(tokenAccountInfo.token);
     tokenAccountInfo.owner = new PublicKey(tokenAccountInfo.owner);
     tokenAccountInfo.amount = TokenAmount.fromBuffer(tokenAccountInfo.amount);
@@ -490,7 +506,7 @@ export class Token {
     }
 
     const dataLayout = BufferLayout.struct([
-      BufferLayout.u32('instruction'),
+      BufferLayout.u8('instruction'),
       Layout.uint64('amount'),
     ]);
 
@@ -537,7 +553,7 @@ export class Token {
     amount: number | TokenAmount,
   ): TransactionInstruction {
     const dataLayout = BufferLayout.struct([
-      BufferLayout.u32('instruction'),
+      BufferLayout.u8('instruction'),
       Layout.uint64('amount'),
     ]);
 
@@ -588,7 +604,7 @@ export class Token {
     account: PublicKey,
     newOwner: PublicKey,
   ): TransactionInstruction {
-    const dataLayout = BufferLayout.struct([BufferLayout.u32('instruction')]);
+    const dataLayout = BufferLayout.struct([BufferLayout.u8('instruction')]);
 
     const data = Buffer.alloc(dataLayout.span);
     dataLayout.encode(

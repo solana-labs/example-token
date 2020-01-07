@@ -1,2 +1,3 @@
+pub mod error;
 pub mod processor;
-mod state;
+pub mod state;

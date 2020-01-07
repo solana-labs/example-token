@@ -28,9 +28,9 @@ async function main() {
   await approveRevoke();
   console.log('Run test: invalidApprove');
   await invalidApprove();
-  console.log('Run test: loadTokenProgram');
+  console.log('Run test: failOnApproveOverspend');
   await failOnApproveOverspend();
-  console.log('Run test: failOnApproveOverspends');
+  console.log('Run test: setOwner');
   await setOwner();
   console.log('Success\n');
 }
