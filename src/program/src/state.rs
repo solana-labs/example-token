@@ -133,10 +133,6 @@ impl<'a> State {
             info!("Error: new account not a signer");
             return Err(TokenError::MissingSigner);
         }
-        if !new_account_info.is_signer {
-            info!("Error: token account not a signer");
-            return Err(TokenError::MissingSigner);
-        }
         if State::Unallocated != State::deserialize(new_account_info.data)? {
             info!("Error: account is already allocated");
             return Err(TokenError::InvalidArgument);
