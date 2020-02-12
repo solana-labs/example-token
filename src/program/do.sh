@@ -50,6 +50,44 @@ perform_action() {
         echo "formatting"
         cargo fmt
         ;;
+    dump)
+        # Dump depends on tools that are not installed by default and must be installed manually
+        # - greadelf
+        # - rustfilt
+        (
+            pwd
+            "$0" build
+
+            so_path="$targetDir/$profile"
+            so_name="solana_bpf_token"
+            so="$so_path/${so_name}_debug.so"
+            dump="$so_path/${so_name}-dump"
+
+            if [ -f "$so" ]; then
+                ls \
+                    -la \
+                    "$so" \
+                    >"${dump}-mangled.txt"
+                greadelf \
+                    -aW \
+                    "$so" \
+                    >>"${dump}-mangled.txt"
+                "$sdkDir/dependencies/llvm-native/bin/llvm-objdump" \
+                    -print-imm-hex \
+                    --source \
+                    --disassemble \
+                    "$so" \
+                    >>"${dump}-mangled.txt"
+                sed \
+                    s/://g \
+                    < "${dump}-mangled.txt" \
+                    | rustfilt \
+                    > "${dump}.txt"
+            else
+                echo "Warning: No dump created, cannot find: $so"
+            fi
+        )
+        ;;
     help)
         usage
         exit
