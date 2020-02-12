@@ -24,7 +24,7 @@ export async function sendAndConfirmTransaction(
   const when = Date.now();
 
   if (!payerAccount) {
-    const [, feeCalculator] = await connection.getRecentBlockhash();
+    const {feeCalculator} = await connection.getRecentBlockhash();
     const fees = feeCalculator.lamportsPerSignature * 100; // wag
     const newPayerAccount = await newSystemAccountWithAirdrop(connection, fees);
     // eslint-disable-next-line require-atomic-updates

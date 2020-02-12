@@ -59,7 +59,7 @@ export async function loadTokenProgram(): Promise<void> {
     'src/program/target/bpfel-unknown-unknown/release/solana_bpf_token.so',
   );
   const connection = await getConnection();
-  const [, feeCalculator] = await connection.getRecentBlockhash();
+  const {feeCalculator} = await connection.getRecentBlockhash();
   const balanceNeeded =
     feeCalculator.lamportsPerSignature *
       (BpfLoader.getMinNumSignatures(data.length) + NUM_RETRIES) +
