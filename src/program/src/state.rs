@@ -1,5 +1,8 @@
-use crate::error::{Result, TokenError};
-use solana_sdk::{account_info::AccountInfo, info, pubkey::Pubkey};
+use crate::error::TokenError;
+use solana_sdk::{
+    account_info::AccountInfo, entrypoint::ProgramResult, info, program_error::ProgramError,
+    program_utils::next_account_info, pubkey::Pubkey,
+};
 use std::mem::size_of;
 
 /// Represents a unique token type that all like token accounts must be
@@ -86,56 +89,60 @@ pub enum Command {
 }
 
 impl<'a> State {
-    pub fn process_newtoken<I: Iterator<Item = &'a mut AccountInfo<'a>>>(
+    pub fn process_newtoken<I: Iterator<Item = &'a AccountInfo<'a>>>(
         account_info_iter: &mut I,
         token: Token,
-    ) -> Result<()> {
+    ) -> ProgramResult {
         let token_account_info = next_account_info(account_info_iter)?;
         let dest_account_info = next_account_info(account_info_iter)?;
 
-        if let State::Account(mut dest_token_account) = State::deserialize(dest_account_info.data)?
-        {
+        let mut dest_account_data = dest_account_info.data.borrow_mut();
+        if let State::Account(mut dest_token_account) = State::deserialize(&dest_account_data)? {
             if !token_account_info.is_signer {
                 info!("Error: token account not a signer");
-                return Err(TokenError::MissingSigner);
+                return Err(ProgramError::MissingRequiredSignature);
             }
             if token_account_info.key != &dest_token_account.token {
                 info!("Error: token mismatch");
-                return Err(TokenError::TokenMismatch);
+                return Err(TokenError::TokenMismatch.into());
             }
             if dest_token_account.delegate.is_some() {
                 info!("Error: Destination account is a delegate and cannot accept tokens");
-                return Err(TokenError::InvalidArgument);
+                return Err(ProgramError::InvalidArgument);
             }
 
             dest_token_account.amount = token.supply;
-            State::Account(dest_token_account).serialize(dest_account_info.data)?;
+            State::Account(dest_token_account).serialize(&mut dest_account_data)?;
         } else {
             info!("Error: Destination account is not an Account");
-            return Err(TokenError::InvalidArgument);
+            return Err(ProgramError::InvalidArgument);
         }
 
-        if State::Unallocated != State::deserialize(token_account_info.data)? {
+        if State::Unallocated != State::deserialize(&token_account_info.data.borrow())? {
             info!("Error: token account is already allocated");
-            return Err(TokenError::InvalidArgument);
+            return Err(ProgramError::InvalidArgument);
         }
-        State::Token(token).serialize(token_account_info.data)
+
+        State::Token(token).serialize(&mut token_account_info.data.borrow_mut())
     }
 
-    pub fn process_newaccount<I: Iterator<Item = &'a mut AccountInfo<'a>>>(
+    pub fn process_newaccount<I: Iterator<Item = &'a AccountInfo<'a>>>(
         account_info_iter: &mut I,
-    ) -> Result<()> {
+    ) -> ProgramResult {
         let new_account_info = next_account_info(account_info_iter)?;
         let owner_account_info = next_account_info(account_info_iter)?;
         let token_account_info = next_account_info(account_info_iter)?;
 
         if !new_account_info.is_signer {
             info!("Error: new account not a signer");
-            return Err(TokenError::MissingSigner);
+            return Err(ProgramError::MissingRequiredSignature);
         }
-        if State::Unallocated != State::deserialize(new_account_info.data)? {
+
+        let mut new_account_data = new_account_info.data.borrow_mut();
+
+        if State::Unallocated != State::deserialize(&new_account_data)? {
             info!("Error: account is already allocated");
-            return Err(TokenError::InvalidArgument);
+            return Err(ProgramError::InvalidArgument);
         }
 
         let mut token_account = TokenAccount {
@@ -150,114 +157,119 @@ impl<'a> State {
                 original_amount: 0,
             });
         }
-        State::Account(token_account).serialize(new_account_info.data)
+
+        State::Account(token_account).serialize(&mut new_account_data)
     }
 
-    pub fn process_transfer<I: Iterator<Item = &'a mut AccountInfo<'a>>>(
+    pub fn process_transfer<I: Iterator<Item = &'a AccountInfo<'a>>>(
         account_info_iter: &mut I,
         amount: u64,
-    ) -> Result<()> {
+    ) -> ProgramResult {
         let owner_account_info = next_account_info(account_info_iter)?;
         let source_account_info = next_account_info(account_info_iter)?;
         let dest_account_info = next_account_info(account_info_iter)?;
 
+        let mut source_data = source_account_info.data.borrow_mut();
+        let mut dest_data = dest_account_info.data.borrow_mut();
         if let (State::Account(mut source_account), State::Account(mut dest_account)) = (
-            State::deserialize(source_account_info.data)?,
-            State::deserialize(dest_account_info.data)?,
+            State::deserialize(&source_data)?,
+            State::deserialize(&dest_data)?,
         ) {
             if source_account.token != dest_account.token {
                 info!("Error: token mismatch");
-                return Err(TokenError::TokenMismatch);
+                return Err(TokenError::TokenMismatch.into());
             }
             if dest_account.delegate.is_some() {
                 info!("Error: destination account is a delegate and cannot accept tokens");
-                return Err(TokenError::InvalidArgument);
+                return Err(ProgramError::InvalidArgument);
             }
             if owner_account_info.key != &source_account.owner {
                 info!("Error: source account owner not present");
-                return Err(TokenError::NoOwner);
+                return Err(TokenError::NoOwner.into());
             }
             if !owner_account_info.is_signer {
                 info!("Error: owner account not a signer");
-                return Err(TokenError::MissingSigner);
+                return Err(ProgramError::MissingRequiredSignature);
             }
             if source_account.amount < amount {
-                return Err(TokenError::InsufficientFunds);
+                return Err(TokenError::InsufficientFunds.into());
             }
 
             if let Some(ref delegate) = source_account.delegate {
                 let source_account_info = next_account_info(account_info_iter)?;
-
+                let mut actual_source_data = source_account_info.data.borrow_mut();
                 if let State::Account(mut actual_source_account) =
-                    State::deserialize(source_account_info.data)?
+                    State::deserialize(&actual_source_data)?
                 {
                     if source_account_info.key != &delegate.source {
                         info!("Error: Source account is not a delegate payee");
-                        return Err(TokenError::NotDelegate);
+                        return Err(TokenError::NotDelegate.into());
                     }
 
                     if actual_source_account.amount < amount {
-                        return Err(TokenError::InsufficientFunds);
+                        return Err(TokenError::InsufficientFunds.into());
                     }
 
                     actual_source_account.amount -= amount;
-                    State::Account(actual_source_account).serialize(source_account_info.data)?;
+                    State::Account(actual_source_account).serialize(&mut actual_source_data)?;
                 } else {
                     info!("Error: payee is an invalid account");
-                    return Err(TokenError::InvalidArgument);
+                    return Err(ProgramError::InvalidArgument);
                 }
             }
 
             source_account.amount -= amount;
-            State::Account(source_account).serialize(source_account_info.data)?;
+            State::Account(source_account).serialize(&mut source_data)?;
 
             dest_account.amount += amount;
-            State::Account(dest_account).serialize(dest_account_info.data)?;
+            State::Account(dest_account).serialize(&mut dest_data)?;
         } else {
             info!("Error: destination and/or source accounts are invalid");
-            return Err(TokenError::InvalidArgument);
+            return Err(ProgramError::InvalidArgument);
         }
         Ok(())
     }
 
-    pub fn process_approve<I: Iterator<Item = &'a mut AccountInfo<'a>>>(
+    pub fn process_approve<I: Iterator<Item = &'a AccountInfo<'a>>>(
         account_info_iter: &mut I,
         amount: u64,
-    ) -> Result<()> {
+    ) -> ProgramResult {
         let owner_account_info = next_account_info(account_info_iter)?;
         let source_account_info = next_account_info(account_info_iter)?;
         let delegate_account_info = next_account_info(account_info_iter)?;
 
+        let source_data = source_account_info.data.borrow_mut();
+        let mut delegate_data = delegate_account_info.data.borrow_mut();
         if let (State::Account(source_account), State::Account(mut delegate_account)) = (
-            State::deserialize(source_account_info.data)?,
-            State::deserialize(delegate_account_info.data)?,
+            State::deserialize(&source_data)?,
+            State::deserialize(&delegate_data)?,
         ) {
             if source_account.token != delegate_account.token {
                 info!("Error: token mismatch");
-                return Err(TokenError::TokenMismatch);
+                return Err(TokenError::TokenMismatch.into());
             }
             if owner_account_info.key != &source_account.owner {
                 info!("Error: source account owner is not present");
-                return Err(TokenError::NoOwner);
+                return Err(TokenError::NoOwner.into());
             }
             if !owner_account_info.is_signer {
                 info!("Error: owner account not a signer");
-                return Err(TokenError::MissingSigner);
+                return Err(ProgramError::MissingRequiredSignature);
             }
             if source_account.delegate.is_some() {
                 info!("Error: source account is a delegate");
-                return Err(TokenError::InvalidArgument);
+                return Err(ProgramError::InvalidArgument);
             }
 
             match &delegate_account.delegate {
                 None => {
                     info!("Error: delegate account is not a delegate");
-                    return Err(TokenError::NotDelegate);
+                    return Err(TokenError::NotDelegate.into());
                 }
                 Some(delegate) => {
                     if source_account_info.key != &delegate.source {
                         info!("Error: delegate account is not a delegate of the source account");
-                        return Err(TokenError::NotDelegate);
+                        return Err(TokenError::NotDelegate.into());
                     }
 
                     delegate_account.amount = amount;
@@ -265,49 +277,50 @@ impl<'a> State {
                         source: delegate.source,
                         original_amount: amount,
                     });
-                    State::Account(delegate_account).serialize(delegate_account_info.data)?;
+                    State::Account(delegate_account).serialize(&mut delegate_data)?;
                 }
             }
         } else {
             info!("Error: destination and/or source accounts are not Accounts");
-            return Err(TokenError::InvalidArgument);
+            return Err(ProgramError::InvalidArgument);
         }
         Ok(())
     }
 
-    pub fn process_setowner<I: Iterator<Item = &'a mut AccountInfo<'a>>>(
+    pub fn process_setowner<I: Iterator<Item = &'a AccountInfo<'a>>>(
         account_info_iter: &mut I,
-    ) -> Result<()> {
+    ) -> ProgramResult {
         let owner_account_info = next_account_info(account_info_iter)?;
         let dest_account_info = next_account_info(account_info_iter)?;
         let new_owner_account_info = next_account_info(account_info_iter)?;
 
-        if let State::Account(mut dest_account) = State::deserialize(dest_account_info.data)? {
+        let mut dest_account_data = dest_account_info.data.borrow_mut();
+        if let State::Account(mut dest_account) = State::deserialize(&dest_account_data)? {
             if owner_account_info.key != &dest_account.owner {
                 info!("Error: destination account owner is not present");
-                return Err(TokenError::NoOwner);
+                return Err(TokenError::NoOwner.into());
             }
             if !owner_account_info.is_signer {
                 info!("Error: owner account not a signer");
-                return Err(TokenError::MissingSigner);
+                return Err(ProgramError::MissingRequiredSignature);
             }
 
             dest_account.owner = *new_owner_account_info.key;
-            State::Account(dest_account).serialize(dest_account_info.data)?;
+            State::Account(dest_account).serialize(&mut dest_account_data)?;
         } else {
             info!("Error: destination account is invalid");
-            return Err(TokenError::InvalidArgument);
+            return Err(ProgramError::InvalidArgument);
         }
         Ok(())
     }
 
     pub fn process(
         _program_id: &Pubkey,
-        accounts: &'a mut [AccountInfo<'a>],
+        accounts: &'a [AccountInfo<'a>],
         input: &[u8],
-    ) -> Result<()> {
+    ) -> ProgramResult {
         let command = Command::deserialize(input)?;
-        let account_info_iter = &mut accounts.iter_mut();
+        let account_info_iter = &mut accounts.iter();
 
         match command {
             Command::NewToken(token_info) => {
@@ -333,15 +346,15 @@ impl<'a> State {
         }
     }
 
-    pub fn deserialize(input: &'a [u8]) -> Result<Self> {
+    pub fn deserialize(input: &'a [u8]) -> Result<Self, ProgramError> {
         if input.len() < size_of::<u8>() {
-            return Err(TokenError::InvalidUserdata);
+            return Err(ProgramError::InvalidAccountData);
         }
         Ok(match input[0] {
             0 => Self::Unallocated,
             1 => {
                 if input.len() < size_of::<u8>() + size_of::<Token>() {
-                    return Err(TokenError::InvalidUserdata);
+                    return Err(ProgramError::InvalidAccountData);
                 }
                 #[allow(clippy::cast_ptr_alignment)]
                 let token: &Token = unsafe { &*(&input[1] as *const u8 as *const Token) };
@@ -349,7 +362,7 @@ impl<'a> State {
             }
             2 => {
                 if input.len() < size_of::<u8>() + size_of::<TokenAccount>() {
-                    return Err(TokenError::InvalidUserdata);
+                    return Err(ProgramError::InvalidAccountData);
                 }
                 #[allow(clippy::cast_ptr_alignment)]
                 let account: &TokenAccount =
@@ -357,19 +370,19 @@ impl<'a> State {
                 Self::Account(*account)
             }
             3 => Self::Invalid,
-            _ => return Err(TokenError::InvalidUserdata),
+            _ => return Err(ProgramError::InvalidAccountData),
         })
     }
 
-    pub fn serialize(self: &Self, output: &mut [u8]) -> Result<()> {
+    pub fn serialize(self: &Self, output: &mut [u8]) -> ProgramResult {
         if output.len() < size_of::<u8>() {
-            return Err(TokenError::InvalidUserdata);
+            return Err(ProgramError::InvalidAccountData);
         }
         match self {
             Self::Unallocated => output[0] = 0,
             Self::Token(token) => {
                 if output.len() < size_of::<u8>() + size_of::<Token>() {
-                    return Err(TokenError::InvalidUserdata);
+                    return Err(ProgramError::InvalidAccountData);
                 }
                 output[0] = 1;
                 #[allow(clippy::cast_ptr_alignment)]
@@ -378,7 +391,7 @@ impl<'a> State {
             }
             Self::Account(account) => {
                 if output.len() < size_of::<u8>() + size_of::<TokenAccount>() {
-                    return Err(TokenError::InvalidUserdata);
+                    return Err(ProgramError::InvalidAccountData);
                 }
                 output[0] = 2;
                 #[allow(clippy::cast_ptr_alignment)]
@@ -392,14 +405,14 @@ impl<'a> State {
 }
 
 impl Command {
-    pub fn deserialize(input: &[u8]) -> Result<Self> {
+    pub fn deserialize(input: &[u8]) -> Result<Self, ProgramError> {
         if input.len() < size_of::<u8>() {
-            return Err(TokenError::InvalidUserdata);
+            return Err(ProgramError::InvalidAccountData);
         }
         Ok(match input[0] {
             0 => {
                 if input.len() < size_of::<u8>() + size_of::<Token>() {
-                    return Err(TokenError::InvalidUserdata);
+                    return Err(ProgramError::InvalidAccountData);
                 }
                 #[allow(clippy::cast_ptr_alignment)]
                 let token: &Token = unsafe { &*(&input[1] as *const u8 as *const Token) };
@@ -408,7 +421,7 @@ impl Command {
             1 => Self::NewTokenAccount,
             2 => {
                 if input.len() < size_of::<u8>() + size_of::<u64>() {
-                    return Err(TokenError::InvalidUserdata);
+                    return Err(ProgramError::InvalidAccountData);
                 }
                 #[allow(clippy::cast_ptr_alignment)]
                 let amount: &u64 = unsafe { &*(&input[1] as *const u8 as *const u64) };
@@ -416,25 +429,25 @@ impl Command {
             }
             3 => {
                 if input.len() < size_of::<u8>() + size_of::<u64>() {
-                    return Err(TokenError::InvalidUserdata);
+                    return Err(ProgramError::InvalidAccountData);
                 }
                 #[allow(clippy::cast_ptr_alignment)]
                 let amount: &u64 = unsafe { &*(&input[1] as *const u8 as *const u64) };
                 Self::Approve(*amount)
             }
             4 => Self::SetOwner,
-            _ => return Err(TokenError::InvalidUserdata),
+            _ => return Err(ProgramError::InvalidAccountData),
         })
     }
 
-    pub fn serialize(self: &Self, output: &mut [u8]) -> Result<()> {
+    pub fn serialize(self: &Self, output: &mut [u8]) -> ProgramResult {
         if output.len() < size_of::<u8>() {
-            return Err(TokenError::InvalidUserdata);
+            return Err(ProgramError::InvalidAccountData);
         }
         match self {
             Self::NewToken(token) => {
                 if output.len() < size_of::<u8>() + size_of::<Token>() {
-                    return Err(TokenError::InvalidUserdata);
+                    return Err(ProgramError::InvalidAccountData);
                 }
                 output[0] = 0;
                 #[allow(clippy::cast_ptr_alignment)]
@@ -444,7 +457,7 @@ impl Command {
             Self::NewTokenAccount => output[0] = 1,
             Self::Transfer(amount) => {
                 if output.len() < size_of::<u8>() + size_of::<u64>() {
-                    return Err(TokenError::InvalidUserdata);
+                    return Err(ProgramError::InvalidAccountData);
                 }
                 output[0] = 2;
                 #[allow(clippy::cast_ptr_alignment)]
@@ -453,7 +466,7 @@ impl Command {
             }
             Self::Approve(amount) => {
                 if output.len() < size_of::<u8>() + size_of::<u64>() {
-                    return Err(TokenError::InvalidUserdata);
+                    return Err(ProgramError::InvalidAccountData);
                 }
                 output[0] = 3;
                 #[allow(clippy::cast_ptr_alignment)]
@@ -464,11 +477,6 @@ impl Command {
         }
         Ok(())
     }
-}
-
-/// Return the next AccountInfo or a NotEnoughAccountKeys error
-pub fn next_account_info<I: Iterator>(iter: &mut I) -> Result<I::Item> {
-    iter.next().ok_or(TokenError::NotEnoughAccountKeys)
 }
 
 // Pulls in the stubs required for `info!()`
@@ -516,7 +524,7 @@ mod tests {
         ];
         let mut account_infos = create_is_signer_account_infos(&mut accounts);
         assert_eq!(
-            Err(TokenError::InvalidArgument),
+            Err(ProgramError::InvalidArgument),
             State::process(&program_id, &mut account_infos, &instruction_data)
         );
 
@@ -567,7 +575,7 @@ mod tests {
         ];
         let mut account_infos = create_is_signer_account_infos(&mut accounts);
         assert_eq!(
-            Err(TokenError::TokenMismatch),
+            Err(TokenError::TokenMismatch.into()),
             State::process(&program_id, &mut account_infos, &instruction_data)
         );
 
@@ -595,7 +603,7 @@ mod tests {
         ];
         let mut account_infos = create_is_signer_account_infos(&mut accounts);
         assert_eq!(
-            Err(TokenError::InvalidArgument),
+            Err(ProgramError::InvalidArgument),
             State::process(&program_id, &mut account_infos, &instruction_data)
         );
 
@@ -606,7 +614,7 @@ mod tests {
         ];
         let mut account_infos = create_is_signer_account_infos(&mut accounts);
         assert_eq!(
-            Err(TokenError::InvalidArgument),
+            Err(ProgramError::InvalidArgument),
             State::process(&program_id, &mut account_infos, &instruction_data)
         );
     }
@@ -632,7 +640,7 @@ mod tests {
         ];
         let mut account_infos = create_is_signer_account_infos(&mut accounts);
         assert_eq!(
-            Err(TokenError::MissingSigner),
+            Err(ProgramError::MissingRequiredSignature),
             State::process(&program_id, &mut account_infos, &instruction_data)
         );
 
@@ -653,7 +661,7 @@ mod tests {
         ];
         let mut account_infos = create_is_signer_account_infos(&mut accounts);
         assert_eq!(
-            Err(TokenError::InvalidArgument),
+            Err(ProgramError::InvalidArgument),
             State::process(&program_id, &mut account_infos, &instruction_data)
         );
     }
@@ -779,7 +787,7 @@ mod tests {
         ];
         let mut account_infos = create_is_signer_account_infos(&mut accounts);
         assert_eq!(
-            Err(TokenError::MissingSigner),
+            Err(ProgramError::MissingRequiredSignature),
             State::process(&program_id, &mut account_infos, &instruction_data)
         );
 
@@ -793,7 +801,7 @@ mod tests {
         ];
         let mut account_infos = create_is_signer_account_infos(&mut accounts);
         assert_eq!(
-            Err(TokenError::InvalidArgument),
+            Err(ProgramError::InvalidArgument),
             State::process(&program_id, &mut account_infos, &instruction_data)
         );
 
@@ -807,7 +815,7 @@ mod tests {
         ];
         let mut account_infos = create_is_signer_account_infos(&mut accounts);
         assert_eq!(
-            Err(TokenError::TokenMismatch),
+            Err(TokenError::TokenMismatch.into()),
             State::process(&program_id, &mut account_infos, &instruction_data)
         );
 
@@ -821,7 +829,7 @@ mod tests {
         ];
         let mut account_infos = create_is_signer_account_infos(&mut accounts);
         assert_eq!(
-            Err(TokenError::NoOwner),
+            Err(TokenError::NoOwner.into()),
             State::process(&program_id, &mut account_infos, &instruction_data)
         );
 
@@ -846,7 +854,7 @@ mod tests {
         ];
         let mut account_infos = create_is_signer_account_infos(&mut accounts);
         assert_eq!(
-            Err(TokenError::InsufficientFunds),
+            Err(TokenError::InsufficientFunds.into()),
             State::process(&program_id, &mut account_infos, &instruction_data)
         );
 
@@ -882,7 +890,7 @@ mod tests {
         ];
         let mut account_infos = create_is_signer_account_infos(&mut accounts);
         assert_eq!(
-            Err(TokenError::InsufficientFunds),
+            Err(TokenError::InsufficientFunds.into()),
             State::process(&program_id, &mut account_infos, &instruction_data)
         );
 
@@ -908,7 +916,7 @@ mod tests {
         ];
         let mut account_infos = create_is_signer_account_infos(&mut accounts);
         assert_eq!(
-            Err(TokenError::NotDelegate),
+            Err(TokenError::NotDelegate.into()),
             State::process(&program_id, &mut account_infos, &instruction_data)
         );
 
@@ -935,7 +943,7 @@ mod tests {
         ];
         let mut account_infos = create_is_signer_account_infos(&mut accounts);
         assert_eq!(
-            Err(TokenError::InsufficientFunds),
+            Err(TokenError::InsufficientFunds.into()),
             State::process(&program_id, &mut account_infos, &instruction_data)
         );
 
@@ -972,7 +980,7 @@ mod tests {
         ];
         let mut account_infos = create_is_signer_account_infos(&mut accounts);
         assert_eq!(
-            Err(TokenError::InsufficientFunds),
+            Err(TokenError::InsufficientFunds.into()),
             State::process(&program_id, &mut account_infos, &instruction_data)
         );
     }
@@ -1076,7 +1084,7 @@ mod tests {
         ];
         let mut account_infos = create_is_signer_account_infos(&mut accounts);
         assert_eq!(
-            Err(TokenError::TokenMismatch),
+            Err(TokenError::TokenMismatch.into()),
             State::process(&program_id, &mut account_infos, &instruction_data)
         );
 
@@ -1090,7 +1098,7 @@ mod tests {
         ];
         let mut account_infos = create_is_signer_account_infos(&mut accounts);
         assert_eq!(
-            Err(TokenError::MissingSigner),
+            Err(ProgramError::MissingRequiredSignature),
             State::process(&program_id, &mut account_infos, &instruction_data)
         );
 
@@ -1104,7 +1112,7 @@ mod tests {
         ];
         let mut account_infos = create_is_signer_account_infos(&mut accounts);
         assert_eq!(
-            Err(TokenError::NoOwner),
+            Err(TokenError::NoOwner.into()),
             State::process(&program_id, &mut account_infos, &instruction_data)
         );
 
@@ -1118,7 +1126,7 @@ mod tests {
         ];
         let mut account_infos = create_is_signer_account_infos(&mut accounts);
         assert_eq!(
-            Err(TokenError::InvalidArgument),
+            Err(ProgramError::InvalidArgument),
             State::process(&program_id, &mut account_infos, &instruction_data)
         );
 
@@ -1132,7 +1140,7 @@ mod tests {
         ];
         let mut account_infos = create_is_signer_account_infos(&mut accounts);
         assert_eq!(
-            Err(TokenError::NotDelegate),
+            Err(TokenError::NotDelegate.into()),
             State::process(&program_id, &mut account_infos, &instruction_data)
         );
 
@@ -1146,7 +1154,7 @@ mod tests {
         ];
         let mut account_infos = create_is_signer_account_infos(&mut accounts);
         assert_eq!(
-            Err(TokenError::NotDelegate),
+            Err(TokenError::NotDelegate.into()),
             State::process(&program_id, &mut account_infos, &instruction_data)
         );
 
@@ -1187,7 +1195,7 @@ mod tests {
         ];
         let mut account_infos = create_is_signer_account_infos(&mut accounts);
         assert_eq!(
-            Err(TokenError::InvalidArgument),
+            Err(ProgramError::InvalidArgument),
             State::process(&program_id, &mut account_infos, &instruction_data)
         );
 
@@ -1212,7 +1220,7 @@ mod tests {
         ];
         let mut account_infos = create_is_signer_account_infos(&mut accounts);
         assert_eq!(
-            Err(TokenError::NoOwner),
+            Err(TokenError::NoOwner.into()),
             State::process(&program_id, &mut account_infos, &instruction_data)
         );
 
@@ -1224,7 +1232,7 @@ mod tests {
         ];
         let mut account_infos = create_is_signer_account_infos(&mut accounts);
         assert_eq!(
-            Err(TokenError::MissingSigner),
+            Err(ProgramError::MissingRequiredSignature),
             State::process(&program_id, &mut account_infos, &instruction_data)
         );
 

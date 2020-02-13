@@ -16,6 +16,7 @@ num-derive = "0.2"
 num-traits = "0.2"
 solana-sdk = { git = "https://github.com/solana-labs/solana", default-features = false, features=["program"] }
 solana-sdk-bpf-test = { git = "https://github.com/solana-labs/solana", default-features = false }
+thiserror = "1.0"
 
 [lib]
 name = "solana_bpf_token"

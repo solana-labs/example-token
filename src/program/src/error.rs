@@ -1,32 +1,27 @@
 use num_derive::FromPrimitive;
-use solana_sdk::{info, instruction_processor_utils::DecodeError};
+use num_traits::FromPrimitive;
+use solana_sdk::{
+    info,
+    program_error::{PrintProgramError, ProgramError},
+    program_utils::DecodeError,
+};
+use thiserror::Error;
 
-pub type Result<T> = std::result::Result<T, TokenError>;
-
-#[derive(Debug, PartialEq, FromPrimitive)]
+#[derive(Clone, Debug, Eq, Error, FromPrimitive, PartialEq)]
 pub enum TokenError {
-    MissingSigner,
-    InvalidArgument,
-    InvalidUserdata,
+    #[error("insufficient funds")]
     InsufficientFunds,
-    NotEnoughAccountKeys,
+    #[error("token mismatch")]
     TokenMismatch,
+    #[error("not a delegate")]
     NotDelegate,
+    #[error("no owner")]
     NoOwner,
 }
 
-impl TokenError {
-    pub fn print(&self) {
-        match self {
-            TokenError::MissingSigner => info!("Error: MissingSigner"),
-            TokenError::InvalidArgument => info!("Error: InvalidArgument"),
-            TokenError::InvalidUserdata => info!("Error: InvalidUserdata"),
-            TokenError::InsufficientFunds => info!("Error: InsufficientFunds"),
-            TokenError::NotEnoughAccountKeys => info!("Error: NotEnoughAccountKeys"),
-            TokenError::TokenMismatch => info!("Error: TokenMismatch"),
-            TokenError::NotDelegate => info!("Error: NotDelegate"),
-            TokenError::NoOwner => info!("Error: NoOwner"),
-        }
+impl From<TokenError> for ProgramError {
+    fn from(e: TokenError) -> Self {
+        ProgramError::CustomError(e as u32)
     }
 }
 
@@ -36,9 +31,37 @@ impl<T> DecodeError<T> for TokenError {
     }
 }
 
-impl std::fmt::Display for TokenError {
-    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "error")
+impl PrintProgramError for TokenError {
+    fn print<E>(&self)
+    where
+        E: 'static + std::error::Error + DecodeError<E> + PrintProgramError + FromPrimitive,
+    {
+        match self {
+            TokenError::InsufficientFunds => info!("Error: insufficient funds"),
+            TokenError::TokenMismatch => info!("Error: token mismatch"),
+            TokenError::NotDelegate => info!("Error: not a delegate"),
+            TokenError::NoOwner => info!("Error: no owner"),
+        }
     }
 }
-impl std::error::Error for TokenError {}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    fn return_token_error_as_program_error() -> ProgramError {
+        TokenError::TokenMismatch.into()
+    }
+
+    #[test]
+    fn test_print_error() {
+        let error = return_token_error_as_program_error();
+        error.print::<TokenError>();
+    }
+
+    #[test]
+    #[should_panic(expected = "CustomError(1)")]
+    fn test_error_unwrap() {
+        Err::<(), ProgramError>(return_token_error_as_program_error()).unwrap();
+    }
+}
