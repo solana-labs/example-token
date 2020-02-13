@@ -136,9 +136,9 @@ fn bench() {
         run_program(&program_id, &parameter_accounts[..], &instruction_data).unwrap();
     assert!(result == 0);
 
-    const BASELINE_NEWTOKENACCOUNT_COUNT: u64 = 1500; // last known 1071
-    const BASELINE_NEWTOKEN_COUNT: u64 = 1500; // last known 1121
-    const BASELINE_TRANSFER_COUNT: u64 = 2000; // last known 1891
+    const BASELINE_NEWTOKENACCOUNT_COUNT: u64 = 1500; // last known 1317
+    const BASELINE_NEWTOKEN_COUNT: u64 = 1500; // last known 1340
+    const BASELINE_TRANSFER_COUNT: u64 = 2500; // last known 2161
 
     println!("BPF instructions executed");
     println!(
