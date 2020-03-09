@@ -14,7 +14,7 @@ edition = "2018"
 [dependencies]
 num-derive = "0.2"
 num-traits = "0.2"
-solana-sdk = { git = "https://github.com/solana-labs/solana", default-features = false, features=["program"] }
+solana-sdk = { version = "=1.0.4", default-features = false, features=["program"] }
 solana-sdk-bpf-test = { git = "https://github.com/solana-labs/solana", default-features = false }
 thiserror = "1.0"
 

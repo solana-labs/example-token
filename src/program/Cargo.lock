@@ -298,8 +298,9 @@ dependencies = [
 
 [[package]]
 name = "solana-sdk"
-version = "0.24.0"
-source = "git+https://github.com/solana-labs/solana#1e0f2b2446137fe1f8a7081c60670a339b69cb92"
+version = "1.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "639cfbf7ee18227f3163211011b1dbb0f29baa714415cc21bb72b31dcca50f9a"
 dependencies = [
  "bincode",
  "bs58",
@@ -327,8 +328,9 @@ source = "git+https://github.com/solana-labs/solana#1e0f2b2446137fe1f8a7081c6067
 
 [[package]]
 name = "solana-sdk-macro"
-version = "0.24.0"
-source = "git+https://github.com/solana-labs/solana#1e0f2b2446137fe1f8a7081c60670a339b69cb92"
+version = "1.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "24d058c90fd097d279e7390e27bfac0fa75b80545c0f3612f272b9badaff1978"
 dependencies = [
  "bs58",
  "proc-macro2 1.0.8",
