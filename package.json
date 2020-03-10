@@ -6,7 +6,7 @@
     "type": "git",
     "url": "https://github.com/solana-labs/example-token"
   },
-  "testnetDefaultChannel": "v1.0.4",
+  "testnetDefaultChannel": "edge",
   "scripts": {
     "start": "babel-node src/cli/main.js",
     "lint": "npm run pretty && eslint .",
@@ -24,7 +24,7 @@
     "localnet:down": "solana-localnet down",
     "localnet:logs": "solana-localnet logs -f",
     "pretty": "prettier --write '{,src/**/}*.js'",
-    "postinstall": "npm run bpf-sdk:update",
+    "postinstall": "npm run bpf-sdk:update && cargo update --manifest-path=src/program/Cargo.toml",
     "test": "npm run build:program && npm run flow"
   },
   "keywords": [],
