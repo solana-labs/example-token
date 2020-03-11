@@ -1854,7 +1854,6 @@ dependencies = [
 [[package]]
 name = "solana-sdk-bpf-test"
 version = "1.1.0"
-source = "git+https://github.com/solana-labs/solana#2c4079f4c83d1333cde3a54f71574cd062c5fe18"
 
 [[package]]
 name = "solana-sdk-macro"
