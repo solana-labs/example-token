@@ -1,6 +1,6 @@
 [![Build status][travis-image]][travis-url]
 
-[travis-image]: https://api.travis-ci.org/solana-labs/example-token.svg?branch=master
+[travis-image]: https://travis-ci.org/solana-labs/example-token.svg?branch=v1.0
 [travis-url]: https://travis-ci.org/solana-labs/example-token
 
 # Token Example on Solana
