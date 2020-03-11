@@ -145,9 +145,9 @@ dependencies = [
 
 [[package]]
 name = "itertools"
-version = "0.9.0"
+version = "0.8.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "284f18f85651fe11e8a991b2adb42cb078325c996ed026d994719efcfca1d54b"
+checksum = "f56a2d0bc861f9165be4eb3442afd3c236d8a98afd426f65d92324ae1091a484"
 dependencies = [
  "either",
 ]
@@ -298,8 +298,9 @@ dependencies = [
 
 [[package]]
 name = "solana-sdk"
-version = "1.1.0"
-source = "git+https://github.com/solana-labs/solana#261732f140a6c37b2a95adaa7899ad3b573bc861"
+version = "1.0.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d82ff00b447d171ff84da7c2a3f236b584a4e602f9fbf33ca808501b37977a58"
 dependencies = [
  "bincode",
  "bs58",
@@ -323,12 +324,13 @@ dependencies = [
 [[package]]
 name = "solana-sdk-bpf-test"
 version = "1.1.0"
-source = "git+https://github.com/solana-labs/solana#261732f140a6c37b2a95adaa7899ad3b573bc861"
+source = "git+https://github.com/solana-labs/solana#3783ae823d7524a11efeda51f1201333d1b36aa5"
 
 [[package]]
 name = "solana-sdk-macro"
-version = "1.1.0"
-source = "git+https://github.com/solana-labs/solana#261732f140a6c37b2a95adaa7899ad3b573bc861"
+version = "1.0.5"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e6f0621b7c896bc3b8abf7561e104e487d54f53810716bfac99ffc7ff75c6065"
 dependencies = [
  "bs58",
  "proc-macro2 1.0.9",
