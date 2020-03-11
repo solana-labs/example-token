@@ -1,5 +1,5 @@
 /**
- * Implements the command-line based game interface
+ * Exercises the command-line based token program
  *
  * @flow
  */
