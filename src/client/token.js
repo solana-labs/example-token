@@ -229,13 +229,13 @@ export class Token {
     );
 
     // Allocate memory for the tokenAccount account
-    transaction = SystemProgram.createAccount(
-      owner.publicKey,
-      tokenAccount.publicKey,
-      balanceNeeded,
-      1 + data.length,
+    transaction = SystemProgram.createAccount({
+      fromPubkey: owner.publicKey,
+      newAccountPubkey: tokenAccount.publicKey,
+      lamports: balanceNeeded,
+      space: 1 + data.length,
       programId,
-    );
+    });
     await sendAndConfirmTransaction(
       'createAccount',
       connection,
@@ -295,13 +295,13 @@ export class Token {
     );
 
     // Allocate memory for the token
-    transaction = SystemProgram.createAccount(
-      owner.publicKey,
-      tokenAccount.publicKey,
-      balanceNeeded,
-      TokenAccountInfoLayout.span,
-      this.programId,
-    );
+    transaction = SystemProgram.createAccount({
+      fromPubkey: owner.publicKey,
+      newAccountPubkey: tokenAccount.publicKey,
+      lamports: balanceNeeded,
+      space: TokenAccountInfoLayout.span,
+      programId: this.programId,
+    });
     await sendAndConfirmTransaction(
       'createAccount',
       this.connection,
