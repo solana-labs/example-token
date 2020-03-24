@@ -31,7 +31,7 @@
   "author": "",
   "license": "MIT",
   "devDependencies": {
-    "prettier": "^1.14.3"
+    "prettier": "^2.0.2"
   },
   "dependencies": {
     "@solana/web3.js": "^0.36.0",
