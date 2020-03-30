@@ -6,7 +6,7 @@
     "type": "git",
     "url": "https://github.com/solana-labs/example-token"
   },
-  "testnetDefaultChannel": "v1.0.9",
+  "testnetDefaultChannel": "v1.0.11",
   "scripts": {
     "start": "babel-node src/cli/main.js",
     "lint": "npm run pretty && eslint .",
