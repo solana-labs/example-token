@@ -6,7 +6,7 @@
     "type": "git",
     "url": "https://github.com/solana-labs/example-token"
   },
-  "testnetDefaultChannel": "v1.0.11",
+  "testnetDefaultChannel": "v1.1.8",
   "scripts": {
     "start": "babel-node src/cli/main.js",
     "lint": "npm run pretty && eslint .",
@@ -14,11 +14,15 @@
     "flow": "flow",
     "flow:watch": "watch 'flow' . --wait=1 --ignoreDirectoryPattern=/doc/",
     "lint:watch": "watch 'npm run lint:fix' . --wait=1",
-    "bpf-sdk:update": "solana-bpf-sdk-install node_modules/@solana/web3.js",
+    "bpf-sdk:update": "solana-bpf-sdk-install node_modules/@solana/web3.js && npm run clean:progam",
     "build:program": "./src/program/do.sh build",
     "clean:program": "./src/program/do.sh clean && cargo clean --manifest-path ./src/program-test/Cargo.toml",
     "test:program": "./src/program/do.sh test",
     "bench:program": "npm run build:program && cargo test --manifest-path ./src/program-test/Cargo.toml -- --nocapture",
+    "cluster:localnet": "rm -f .env",
+    "cluster:devnet": "cp cluster-devnet.env .env",
+    "cluster:testnet": "cp cluster-testnet.env .env",
+    "cluster:mainnet-beta": "cp cluster-mainnet-beta.env .env",
     "localnet:update": "solana-localnet update",
     "localnet:up": "set -x; solana-localnet down; set -e; solana-localnet up",
     "localnet:down": "solana-localnet down",
@@ -34,7 +38,7 @@
     "prettier": "^2.0.2"
   },
   "dependencies": {
-    "@solana/web3.js": "^0.38.0",
+    "@solana/web3.js": "^0.43.4",
     "babel-cli": "^6.26.0",
     "babel-core": "^6.26.3",
     "babel-eslint": "^10.0.1",
@@ -51,6 +55,7 @@
     "body-parser": "^1.18.3",
     "buffer-layout": "^1.2.0",
     "css-loader": "^3.1.0",
+    "dotenv": "8.2.0",
     "eslint": "^6.1.0",
     "eslint-loader": "^3.0.0",
     "eslint-plugin-import": "^2.13.0",

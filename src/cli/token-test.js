@@ -5,7 +5,7 @@ import {Connection, BpfLoader, PublicKey} from '@solana/web3.js';
 import semver from 'semver';
 
 import {Token, TokenAmount} from '../client/token';
-import {url} from './url';
+import {url} from '../../url';
 import {newAccountWithLamports} from '../client/util/new-account-with-lamports';
 import {sleep} from '../client/util/sleep';
 
@@ -50,6 +50,7 @@ async function getConnection(): Promise<Connection> {
 
   // eslint-disable-next-line require-atomic-updates
   connection = newConnection;
+  console.log('Connection to cluster established:', url, version);
   return connection;
 }
 

@@ -5,3 +5,4 @@
 /dist/config.json
 /dist/program/
 /.cargo
+.env
